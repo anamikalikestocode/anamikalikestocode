@@ -53,6 +53,8 @@ export const StatsView: React.FC = () => {
     ? sessionStats.bluffFollowThrough.completed / sessionStats.bluffFollowThrough.started : null;
   const riverValueRate = sessionStats.riverThinValue.spots > 0
     ? sessionStats.riverThinValue.bet / sessionStats.riverThinValue.spots : null;
+  const preflopSizingRate = sessionStats.preflopSizing.opens > 0
+    ? sessionStats.preflopSizing.oversized / sessionStats.preflopSizing.opens : null;
 
   const totalDecisions = sessionStats.optimalCount + sessionStats.marginalCount +
     sessionStats.mistakeCount + sessionStats.spewCount;
@@ -149,6 +151,12 @@ export const StatsView: React.FC = () => {
             value={bluffFTRate !== null ? formatPercent(bluffFTRate) : '—'}
             gto="≥55%"
             status={bluffFTRate !== null ? (bluffFTRate < 0.35 ? 'bad' : bluffFTRate < 0.50 ? 'warn' : 'ok') : null}
+          />
+          <StatRow
+            label={`Sizing consistency (${sessionStats.preflopSizing.opens} opens)`}
+            value={preflopSizingRate !== null ? formatPercent(preflopSizingRate) : '—'}
+            gto="< 15%"
+            status={preflopSizingRate !== null ? (preflopSizingRate > 0.40 ? 'bad' : preflopSizingRate > 0.20 ? 'warn' : 'ok') : null}
           />
         </div>
         <div className="mt-2 text-xs text-gray-600">

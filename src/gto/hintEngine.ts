@@ -119,11 +119,35 @@ function buildPreflop(
     explanation = `${hero.position} vs ${numRaises}-bet: ${handKey} calls ${(gtoFreq * 100).toFixed(0)}% GTO.`;
   }
 
-  const verdict = verdictFromFreq(gtoFreq, playerAction, gtoAction);
-  const evDeltaBB = verdict === 'gto' || verdict === 'acceptable' ? 0 :
+  let verdict = verdictFromFreq(gtoFreq, playerAction, gtoAction);
+  let evDeltaBB = verdict === 'gto' || verdict === 'acceptable' ? 0 :
     verdict === 'spew' ? -3.0 :
     verdict === 'mistake' ? -1.5 :
     -0.5;
+
+  // Preflop raise sizing tell detection (Vals AI benchmark #1 exploitable pattern)
+  let isSizingTell = false;
+  if (playerAction === 'raise' && depth === '100bb') {
+    const raiseAmt = (heroAction as { amount?: number }).amount ?? 0;
+    const gtoStdSize = (hero.position === 'BTN' || hero.position === 'CO') ? 2.5 : 3.0;
+
+    if (raiseAmt > gtoStdSize * 1.55) {
+      isSizingTell = true;
+      explanation = `[SIZING TELL] Raised ${raiseAmt.toFixed(1)}bb — GTO standard is ${gtoStdSize}bb regardless of hand strength. Uniform sizing prevents opponents reading your range. ` + explanation;
+
+      if (raiseAmt > gtoStdSize * 2.0 && gtoFreq > 0.75) {
+        verdict = 'mistake';
+        evDeltaBB = -2.0;
+      }
+    }
+
+    // 3-bet spot oversizing check
+    if (numRaises === 1 && raiseAmt > 12) {
+      explanation += ` Note: 3-bet to ${raiseAmt.toFixed(1)}bb is oversized — standard 3-bet is 3x the open (~7.5–9bb).`;
+    }
+  }
+
+  void isSizingTell; // used for side-effect flagging in hint text
 
   return {
     verdict,

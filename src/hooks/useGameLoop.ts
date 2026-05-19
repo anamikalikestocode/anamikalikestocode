@@ -20,6 +20,7 @@ export function useGameLoop() {
     recordStreetSnapshot, finalizeHand,
     recordVPIP, recordPFR, recordBBDecision,
     recordCbet, recordRiverThinValue, recordBluffFollowThrough,
+    recordPreflopSizing,
   } = useTrainingStore();
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // tracks flop/turn bluffs: hero bet with equity < 0.38
@@ -53,6 +54,14 @@ export function useGameLoop() {
       const voluntary = aType === 'PLAYER_CALL' || isBet;
       recordVPIP(voluntary);
       recordPFR(isBet);
+
+      // Preflop sizing tell tracking
+      if (isBet) {
+        const raiseAmt = (action as { amount?: number }).amount ?? 0;
+        const gtoStdX = (hero.position === 'BTN' || hero.position === 'CO') ? 2.5 : 3.0;
+        const isOversized = raiseAmt > gtoStdX * 1.55;
+        recordPreflopSizing(isOversized);
+      }
 
       // BB defense: hero is BB and facing a raise above the posted BB
       if (hero.position === 'BB' && state.currentBet > hero.currentBet + 0.5) {
@@ -100,7 +109,7 @@ export function useGameLoop() {
     }, 0);
 
     dispatch(action);
-  }, [dispatch, setHint, recordVPIP, recordPFR, recordBBDecision, recordCbet, recordRiverThinValue, recordBluffFollowThrough]);
+  }, [dispatch, setHint, recordVPIP, recordPFR, recordBBDecision, recordCbet, recordRiverThinValue, recordBluffFollowThrough, recordPreflopSizing]);
 
   // AI turn handler
   useEffect(() => {

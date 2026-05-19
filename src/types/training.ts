@@ -56,6 +56,7 @@ export interface SessionStats {
   riverThinValue: { spots: number; bet: number };      // missed thin river value
   sizingTells: SizingTell[];                           // detected range tells
   bluffFollowThrough: { started: number; completed: number }; // flop bluff → river completion
+  preflopSizing: { opens: number; oversized: number };       // preflop raise sizing tell
 }
 
 export interface SizingTell {

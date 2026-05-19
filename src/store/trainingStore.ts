@@ -39,6 +39,7 @@ function freshStats(): SessionStats {
     riverThinValue: { spots: 0, bet: 0 },
     sizingTells: [],
     bluffFollowThrough: { started: 0, completed: 0 },
+    preflopSizing: { opens: 0, oversized: 0 },
   };
 }
 
@@ -177,6 +178,20 @@ function computeLeaks(history: HandSnapshot[], stats: SessionStats, numPlayers: 
     }
   }
 
+  // 7. Preflop raise sizing tell
+  if (stats.preflopSizing.opens >= 15) {
+    const oversizedRate = stats.preflopSizing.oversized / stats.preflopSizing.opens;
+    if (oversizedRate > 0.40) {
+      leaks.push({
+        spotType: 'preflop_open',
+        description: `Preflop raise sizing tell: ${(oversizedRate * 100).toFixed(0)}% of opens are oversized`,
+        evLostPer100: -2.0,
+        sampleSize: stats.preflopSizing.opens,
+        recommendation: 'The Vals AI benchmark identified oversizing with strong hands as the #1 exploitable preflop tell. GTO requires UNIFORM sizing across your entire range — 2.5bb from BTN/CO, 3bb from other positions — regardless of hand strength. Raising AA to 6x while bluffing at 2.5x makes your range completely readable. Use the same size every time.',
+      });
+    }
+  }
+
   return leaks.sort((a, b) => a.evLostPer100 - b.evLostPer100).slice(0, 3);
 }
 
@@ -206,6 +221,7 @@ interface TrainingState {
   recordCbet: (texture: 'dry' | 'wet', correctSize: boolean) => void;
   recordRiverThinValue: (bet: boolean) => void;
   recordBluffFollowThrough: (completed: boolean) => void;
+  recordPreflopSizing: (oversized: boolean) => void;
   selectHand: (id: string | null) => void;
   generateLeakReport: () => void;
   setDrillFilter: (filter: Partial<DrillFilter>) => void;
@@ -282,6 +298,17 @@ export const useTrainingStore = create<TrainingState>()(
             bluffFollowThrough: {
               started: s.sessionStats.bluffFollowThrough.started + 1,
               completed: s.sessionStats.bluffFollowThrough.completed + (completed ? 1 : 0),
+            },
+          },
+        })),
+
+      recordPreflopSizing: (oversized) =>
+        set((s) => ({
+          sessionStats: {
+            ...s.sessionStats,
+            preflopSizing: {
+              opens: s.sessionStats.preflopSizing.opens + 1,
+              oversized: s.sessionStats.preflopSizing.oversized + (oversized ? 1 : 0),
             },
           },
         })),
