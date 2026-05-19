@@ -8,8 +8,40 @@ export interface EVEstimate {
   evDeltaPer100: number;
 }
 
-function pct(v: number): string {
-  return `${(v * 100).toFixed(0)}%`;
+function pct(v: number): string { return `${(v * 100).toFixed(0)}%`; }
+function bb(v: number): string  { return `${v >= 0 ? '+' : ''}${v.toFixed(1)}bb`; }
+
+function sprNote(spr: number): string {
+  if (spr < 1.5) return `SPR ${spr.toFixed(1)}: trivial commit — any reasonable equity stacks.`;
+  if (spr < 3)   return `SPR ${spr.toFixed(1)}: commit with top-pair+. Draws have the right price.`;
+  if (spr < 6)   return `SPR ${spr.toFixed(1)}: mid-depth. Strong draws worth raising; marginal pairs call.`;
+  return `SPR ${spr.toFixed(1)}: deep. Premium hands only for stacking — bloated bluffs are costly.`;
+}
+
+function mdfNote(betFrac: number): string {
+  const mdf = 1 - betFrac / (1 + betFrac);
+  return `MDF ${pct(mdf)}: you must defend at least ${pct(mdf)} of your range to prevent auto-profitable bluffs.`;
+}
+
+function textureNote(texture: PostflopContext['boardTexture'], facingBet: boolean): string {
+  switch (texture) {
+    case 'wet':
+      return facingBet
+        ? 'Wet board: draws dense in range — defend wider and raise stronger draws for protection.'
+        : 'Wet board: polarize sizing (50–75% pot) to charge draws and protect your value range.';
+    case 'monotone':
+      return facingBet
+        ? 'Monotone board: flush draws everywhere — MDF widens slightly; be careful raising without nut-flush equity.'
+        : 'Monotone board: 45–70% pot sizing. Ranges cap at non-flush hands — bet for protection and thin value.';
+    case 'paired':
+      return facingBet
+        ? 'Paired board: straights/flushes reduced; full houses credible — fold threshold rises slightly.'
+        : 'Paired board: check back marginal hands; bet strong made hands and value-heavy bluffs only.';
+    default:
+      return facingBet
+        ? 'Dry board: opponent\'s range is mostly air — MDF applies strictly, call with any equity.'
+        : 'Dry board: 25–33% pot c-bet captures the node EV. Over-sizing is a range tell.';
+  }
 }
 
 export function estimatePostflopDecision(
@@ -18,52 +50,44 @@ export function estimatePostflopDecision(
 ): EVEstimate {
   const { heroEquity, requiredEquity, spr, potSize, betSize, inPosition, boardTexture, street, facingBet } = ctx;
 
-  const margin = heroEquity - requiredEquity;
   const ipBonus = inPosition ? 0.04 : 0;
-  const adjustedEquity = heroEquity + ipBonus;
+  const adjustedEq = heroEquity + ipBonus;
+  const margin = adjustedEq - requiredEquity;
+  const betFrac = potSize > 0 ? betSize / potSize : 0;
 
+  // ── Determine recommended action & base EV ─────────────────────────────────
   let recommendedAction: GTOAction;
-  let baseExplanation: string;
+  let baseExpl: string;
   let evDeltaBB = 0;
 
-  const isNutType = heroEquity > 0.85;
-  const isDrawy = heroEquity > 0.3 && heroEquity < 0.55;
-
-  if (isNutType) {
+  if (heroEquity > 0.85) {
     recommendedAction = 'raise';
-    baseExplanation = `Nut-strength hand (${pct(heroEquity)} equity). Raise for value and protection`;
-  } else if (adjustedEquity > requiredEquity + 0.15) {
-    recommendedAction = facingBet ? 'raise' : 'raise';
-    baseExplanation = `${pct(heroEquity)} equity vs ${pct(requiredEquity)} needed — clear value spot`;
-    evDeltaBB = margin * potSize * 0.7;
-  } else if (adjustedEquity > requiredEquity + 0.05) {
+    baseExpl = `${pct(heroEquity)} equity — nut-strength. Raise for value and to deny runner-runner equity.`;
+    evDeltaBB = potSize * 0.25;
+  } else if (spr < 2 && heroEquity > 0.38) {
+    recommendedAction = 'raise';
+    baseExpl = `${sprNote(spr)} ${pct(heroEquity)} equity crosses the commit threshold.`;
+    evDeltaBB = potSize * 0.15;
+  } else if (margin > 0.15) {
     recommendedAction = facingBet ? 'call' : 'raise';
-    baseExplanation = `${pct(heroEquity)} equity exceeds ${pct(requiredEquity)} break-even — marginal value`;
-    evDeltaBB = margin * potSize * 0.3;
-  } else if (Math.abs(margin) <= 0.08) {
+    evDeltaBB = margin * potSize * 0.65;
+    const sign = facingBet ? 'call' : 'bet';
+    baseExpl = `${pct(adjustedEq)} eq vs ${pct(requiredEquity)} required (+${pct(margin)} margin). Clear ${sign}${inPosition ? ' — IP adds ~4% EV' : ''}.`;
+  } else if (margin > 0.05) {
+    recommendedAction = facingBet ? 'call' : 'raise';
+    evDeltaBB = margin * potSize * 0.35;
+    baseExpl = `${pct(adjustedEq)} eq vs ${pct(requiredEquity)} (+${pct(margin)}). ${facingBet ? 'Thin call' : 'Marginal bet'} — exploitable if sized wrong.`;
+  } else if (Math.abs(margin) <= 0.06) {
     recommendedAction = 'call';
-    baseExplanation = `${pct(heroEquity)} equity near break-even (${pct(requiredEquity)} needed)`;
     evDeltaBB = margin * potSize * 0.1;
-  } else if (spr < 2) {
-    recommendedAction = 'raise';
-    baseExplanation = `SPR ${spr.toFixed(1)}: commit or fold territory. ${pct(heroEquity)} equity`;
-    evDeltaBB = heroEquity > 0.4 ? potSize * 0.15 : -potSize * 0.1;
+    baseExpl = `${pct(heroEquity)} eq within 6% of break-even (${pct(requiredEquity)}). Mixed-strategy zone — call is fine.`;
   } else {
     recommendedAction = 'fold';
-    baseExplanation = `${pct(heroEquity)} equity below ${pct(requiredEquity)} needed — fold`;
-    evDeltaBB = margin * potSize * 0.5;
+    evDeltaBB = margin * potSize * 0.45;
+    baseExpl = `${pct(heroEquity)} eq vs ${pct(requiredEquity)} needed (${pct(Math.abs(margin))} under). Fold: ${bb(evDeltaBB)}.`;
   }
 
-  // Texture modifier
-  const textureNote = boardTexture === 'wet'
-    ? '. Wet board increases draw equity — defend wider'
-    : boardTexture === 'monotone'
-      ? '. Monotone board: flush draws heavily in range'
-      : boardTexture === 'paired'
-        ? '. Paired board reduces flush/straight draws'
-        : '';
-
-  // Compute verdict by comparing player action to recommendation
+  // ── Compare player action to recommendation ────────────────────────────────
   let verdict: DecisionVerdict;
   const evImpact = Math.abs(evDeltaBB);
 
@@ -71,30 +95,46 @@ export function estimatePostflopDecision(
     verdict = 'gto';
     evDeltaBB = 0;
   } else if (recommendedAction === 'fold' && playerAction !== 'fold') {
-    verdict = evImpact > potSize * 0.3 ? 'spew' : 'mistake';
+    verdict = evImpact > potSize * 0.30 ? 'spew' : 'mistake';
     evDeltaBB = -evImpact;
   } else if (recommendedAction !== 'fold' && playerAction === 'fold') {
-    verdict = evImpact > potSize * 0.2 ? 'mistake' : 'marginal';
+    verdict = evImpact > potSize * 0.20 ? 'mistake' : 'marginal';
     evDeltaBB = -evImpact;
   } else if (recommendedAction === 'raise' && playerAction === 'call') {
     verdict = 'marginal';
     evDeltaBB = -(evImpact * 0.4);
   } else if (recommendedAction === 'call' && playerAction === 'raise') {
-    verdict = margin < -0.1 ? 'mistake' : 'acceptable';
-    evDeltaBB = margin < -0.1 ? -(evImpact * 0.5) : 0;
+    verdict = margin < -0.10 ? 'mistake' : 'acceptable';
+    evDeltaBB = margin < -0.10 ? -(evImpact * 0.5) : 0;
   } else {
     verdict = 'marginal';
     evDeltaBB = -(evImpact * 0.2);
   }
 
-  const posNote = inPosition ? ' (IP)' : ' (OOP)';
-  const streetNote = street === 'river' ? ' River: no more cards to come — equity is final.' : '';
+  // ── Build full explanation ─────────────────────────────────────────────────
+  const parts: string[] = [baseExpl];
+
+  if (facingBet && betFrac > 0.25) {
+    parts.push(mdfNote(betFrac));
+  }
+  parts.push(textureNote(boardTexture, facingBet));
+  parts.push(sprNote(spr));
+
+  if (street === 'river') {
+    parts.push('River: equity is final — no draws improve. EV is pure stack math from here.');
+  } else if (street === 'turn') {
+    parts.push('Turn: draws are priced in or out. If you defended flop correctly, turn defense follows proportionally.');
+  }
+
+  if (!inPosition && facingBet) {
+    parts.push('OOP: consider donk-leads or check-raises on turns that improve your range but not theirs.');
+  }
 
   return {
     recommendedAction,
     verdict,
-    explanation: `${baseExplanation}${textureNote}${posNote}.${streetNote}`,
+    explanation: parts.join(' '),
     evDeltaBB,
-    evDeltaPer100: evDeltaBB * 2, // rough approximation
+    evDeltaPer100: evDeltaBB * 2,
   };
 }

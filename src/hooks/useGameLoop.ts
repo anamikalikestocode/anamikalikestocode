@@ -9,6 +9,7 @@ import {
   getGTOHint, analyzeCbetSizing, isRiverThinValueSpot, classifyBoardTexture,
 } from '../gto/hintEngine';
 import { GameAction } from '../types/game';
+import { HeroTendencies } from '../ai/types';
 
 registerReducer(gameReducer);
 
@@ -118,10 +119,19 @@ export function useGameLoop() {
       if (!currentActor?.isAI) return;
 
       const validActions = getValidActions(currentGame, currentActor.id);
+      const { sessionStats } = useTrainingStore.getState();
+      const tendencies: HeroTendencies = {
+        bbDefenseRate: sessionStats.bbDefense.faced >= 8
+          ? sessionStats.bbDefense.defended / sessionStats.bbDefense.faced : null,
+        vpipRate: sessionStats.vpip.hands >= 15
+          ? sessionStats.vpip.voluntary / sessionStats.vpip.hands : null,
+        riverFoldRate: sessionStats.bluffFollowThrough.started >= 5
+          ? 1 - sessionStats.bluffFollowThrough.completed / sessionStats.bluffFollowThrough.started : null,
+      };
       const action = selectAIAction(currentGame, currentActor.id, {
         difficulty: currentActor.difficulty ?? 'tag',
         name: currentActor.name,
-      }, validActions);
+      }, validActions, tendencies);
 
       dispatch(action);
     }, delay);
