@@ -55,12 +55,12 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
         <div className="text-right space-y-0.5">
           {hint.evDeltaBB !== null && hint.evDeltaBB !== 0 && (
             <div className={`text-sm font-mono font-bold ${hint.evDeltaBB < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {hint.evDeltaBB < 0 ? '−' : '+'}{Math.abs(hint.evDeltaBB).toFixed(2)} bb
+              {hint.evDeltaBB < 0 ? '−' : '+'}{Math.abs(hint.evDeltaBB).toFixed(2)} BB
             </div>
           )}
           {hint.evDeltaPer100 !== null && hint.evDeltaPer100 !== 0 && (
             <div className="text-[11px] font-mono text-gray-500">
-              {hint.evDeltaPer100 < 0 ? '−' : '+'}{Math.abs(hint.evDeltaPer100).toFixed(1)}/100
+              {hint.evDeltaPer100 < 0 ? '−' : '+'}{Math.abs(hint.evDeltaPer100).toFixed(1)} / 100 hands
             </div>
           )}
         </div>
@@ -70,23 +70,23 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
       {isSizingTell && (
         <div className="bg-amber-950 border border-amber-800 p-3 space-y-1">
           <div className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
-            ⚠ SIZING TELL
+            ⚠ Betting Pattern Tell
           </div>
           <p className="text-xs font-sans text-amber-300 leading-relaxed">{explanation}</p>
         </div>
       )}
 
-      {/* 3. Action comparison: YOU vs GTO */}
+      {/* 3. Action comparison: Your Play vs Best Play */}
       <div className="grid grid-cols-2 gap-3">
         <div className={`px-3 py-2 border ${actionsMatch ? 'bg-emerald-950 border-emerald-800' : 'bg-gray-800 border-gray-700'}`}>
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">YOU</div>
-          <div className={`text-sm font-bold uppercase font-mono ${actionsMatch ? 'text-emerald-400' : 'text-gray-300'}`}>
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">Your Play</div>
+          <div className={`text-sm font-bold font-mono capitalize ${actionsMatch ? 'text-emerald-400' : 'text-gray-300'}`}>
             {hint.playerAction}
           </div>
         </div>
         <div className="bg-emerald-950 border border-emerald-800 px-3 py-2">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">GTO</div>
-          <div className="text-sm font-bold uppercase font-mono text-emerald-400">
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">Best Play</div>
+          <div className="text-sm font-bold font-mono text-emerald-400 capitalize">
             {hint.gtoAction}
             {hint.gtoRaiseFreq > 0 && hint.gtoRaiseFreq < 1 && (
               <span className="text-emerald-600 font-normal ml-1">
@@ -102,19 +102,19 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
         </div>
       </div>
 
-      {/* 4. Solver equity metrics (postflop) */}
+      {/* 4. Equity metrics (postflop) */}
       {showEquity && (
         <div className="grid grid-cols-3 gap-2">
           <div className="text-center">
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Eq</div>
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Your Equity</div>
             <div className="text-sm font-mono font-bold text-gray-200">{equityPct}%</div>
           </div>
           <div className="text-center">
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Req</div>
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Need to Call</div>
             <div className="text-sm font-mono font-bold text-gray-200">{reqPct}%</div>
           </div>
           <div className="text-center">
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Margin</div>
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Edge</div>
             <div className={`text-sm font-mono font-bold ${marginPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
               {marginPct >= 0 ? '+' : ''}{marginPct}%
             </div>
@@ -122,10 +122,10 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
         </div>
       )}
 
-      {/* 5. GTO mix bar */}
+      {/* 5. Optimal play split */}
       {(hint.gtoRaiseFreq > 0 || hint.gtoCallFreq > 0) && (
         <div className="space-y-1.5">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">GTO Mix</div>
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Optimal Frequencies</div>
           <div className="flex h-1.5 gap-px overflow-hidden rounded-sm bg-gray-800">
             {hint.gtoRaiseFreq > 0.01 && (
               <div
@@ -151,13 +151,13 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
           </div>
           <div className="flex gap-3 text-[11px]">
             {hint.gtoRaiseFreq > 0.01 && (
-              <span className="text-emerald-500 font-mono">R {Math.round(hint.gtoRaiseFreq * 100)}%</span>
+              <span className="text-emerald-500 font-mono">Raise {Math.round(hint.gtoRaiseFreq * 100)}%</span>
             )}
             {hint.gtoCallFreq > 0.01 && (
-              <span className="text-blue-400 font-mono">C {Math.round(hint.gtoCallFreq * 100)}%</span>
+              <span className="text-blue-400 font-mono">Call {Math.round(hint.gtoCallFreq * 100)}%</span>
             )}
             {hint.gtoFoldFreq > 0.01 && (
-              <span className="text-gray-500 font-mono">F {Math.round(hint.gtoFoldFreq * 100)}%</span>
+              <span className="text-gray-500 font-mono">Fold {Math.round(hint.gtoFoldFreq * 100)}%</span>
             )}
           </div>
         </div>
@@ -184,7 +184,7 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
       {hint.rangeData && heroKey && (
         <div className="border-t border-gray-800 pt-3">
           <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-2">
-            Position Range
+            Your Hand in This Range
           </div>
           <RangeGrid rangeData={hint.rangeData} heroHand={heroKey} compact />
         </div>

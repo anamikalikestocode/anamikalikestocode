@@ -130,17 +130,17 @@ export const StatsView: React.FC = () => {
         <div className="bg-gray-900 border border-gray-800 p-3 text-center">
           <div
             className="text-[11px] font-medium uppercase tracking-widest text-gray-500 cursor-help"
-            data-tip="Decision quality score: EV gained/lost per 100 hands based on your decisions, not cards dealt."
+            title="How many chips your decisions earned or lost per 100 hands — luck removed."
           >
-            Skill EV / 100
+            Decision Score
           </div>
-          <div className="text-[10px] text-gray-700 font-sans">(luck-adj.)</div>
+          <div className="text-[10px] text-gray-700 font-sans">per 100 hands</div>
           <div className="text-base font-mono font-bold text-gray-100 mt-0.5">
             {sessionStats.handsPlayed > 0 ? sessionStats.evPer100.toFixed(1) : '—'}
           </div>
         </div>
         <div className="bg-gray-900 border border-gray-800 p-3 text-center">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Net</div>
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Net Won</div>
           <div className="text-base font-mono font-bold text-gray-100 mt-1">{formatEV(sessionStats.bbWon)}</div>
         </div>
       </div>
@@ -150,10 +150,10 @@ export const StatsView: React.FC = () => {
         <div className="bg-gray-900 border border-gray-800 p-3 space-y-2.5">
           <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Decision Quality</div>
           {[
-            { label: 'GTO / Acceptable', count: sessionStats.optimalCount,  color: 'bg-emerald-600' },
-            { label: 'Marginal',         count: sessionStats.marginalCount,  color: 'bg-yellow-600' },
-            { label: 'Mistake',          count: sessionStats.mistakeCount,   color: 'bg-orange-600' },
-            { label: 'Spew',             count: sessionStats.spewCount,      color: 'bg-red-700'    },
+            { label: 'Good',    count: sessionStats.optimalCount,  color: 'bg-emerald-600' },
+            { label: 'Close',   count: sessionStats.marginalCount,  color: 'bg-yellow-600' },
+            { label: 'Mistake', count: sessionStats.mistakeCount,   color: 'bg-orange-600' },
+            { label: 'Blunder', count: sessionStats.spewCount,      color: 'bg-red-700'    },
           ].map(({ label, count, color }) => {
             const pct = totalDecisions > 0 ? Math.round((count / totalDecisions) * 100) : 0;
             return (
@@ -175,78 +175,78 @@ export const StatsView: React.FC = () => {
       <div className="bg-gray-900 border border-gray-800 p-3">
         <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">
           Playing Stats{' '}
-          <span className="text-gray-700 normal-case font-normal text-[10px]">(vs GTO @ {tableSize}-handed)</span>
+          <span className="text-gray-700 normal-case font-normal text-[10px]">(vs optimal, {tableSize}-handed)</span>
         </div>
         <div className="space-y-0">
           <StatRow
-            label={`VPIP (${sessionStats.vpip.hands} hands)`}
+            label={`Hands you entered (${sessionStats.vpip.hands} played)`}
             value={vpipRate !== null ? formatPercent(vpipRate) : '—'}
             gto={formatPercent(gtoVpip)}
             status={vpipStatus()}
-            tooltip="Voluntarily Put in Pot — % of hands you call or raise preflop, excluding forced blinds. GTO varies by table size."
+            tooltip="How often you voluntarily put chips in preflop by calling or raising. Excludes forced blinds. Optimal rate varies by table size."
             current={vpipRate ?? undefined}
             target={gtoVpip}
           />
           <StatRow
-            label={`PFR (${sessionStats.pfr.hands} hands)`}
+            label={`Pre-flop raises (${sessionStats.pfr.hands} hands)`}
             value={pfrRate !== null ? formatPercent(pfrRate) : '—'}
             gto={formatPercent(gtoPfr)}
             status={pfrRate !== null ? (pfrRate < gtoPfr - 0.06 ? 'warn' : pfrRate > gtoPfr + 0.08 ? 'warn' : 'ok') : null}
-            tooltip="Preflop Raise % — how often you raise (not just call) preflop. A low PFR relative to VPIP means too much passive calling."
+            tooltip="How often you raise (not just call) before the flop. If this is much lower than your 'hands entered' rate, you're calling too passively."
             current={pfrRate ?? undefined}
             target={gtoPfr}
           />
           <StatRow
-            label={`BB Defense (${sessionStats.bbDefense.faced} spots)`}
+            label={`Big blind defense (${sessionStats.bbDefense.faced} spots)`}
             value={bbDefRate !== null ? formatPercent(bbDefRate) : '—'}
             gto="≥52%"
             status={bbDefRate !== null ? (bbDefRate < 0.44 ? 'bad' : bbDefRate < 0.50 ? 'warn' : 'ok') : null}
-            tooltip="Big Blind Defense Rate — how often you defend vs a steal raise. GTO Wizard recommends defending 52%+ at 100bb to prevent auto-profitable steals."
+            tooltip="When someone raises and you're in the big blind, how often you call or re-raise. Folding more than 48% gives opponents a free profit on their steal."
             current={bbDefRate ?? undefined}
             target={0.52}
           />
           <StatRow
-            label={`C-bet size (dry, ${sessionStats.cbetStats.dry.count})`}
+            label={`Continuation bet — dry boards (${sessionStats.cbetStats.dry.count})`}
             value={cbetDryRate !== null ? `${(cbetDryRate * 100).toFixed(0)}% correct` : '—'}
             gto="25–40% pot"
             status={cbetDryRate !== null ? (cbetDryRate < 0.4 ? 'bad' : cbetDryRate < 0.65 ? 'warn' : 'ok') : null}
-            tooltip="Continuation bet sizing accuracy — GTO uses different sizes by board texture: 25-33% on dry/paired boards, 50-75% on wet/connected boards."
+            tooltip="When you raised pre-flop and bet the flop on a dry/unconnected board: optimal size is 25–33% of the pot. Bigger tells opponents you have a strong hand."
             current={cbetDryRate ?? undefined}
             target={0.65}
           />
           <StatRow
-            label={`C-bet size (wet, ${sessionStats.cbetStats.wet.count})`}
+            label={`Continuation bet — wet boards (${sessionStats.cbetStats.wet.count})`}
             value={cbetWetRate !== null ? `${(cbetWetRate * 100).toFixed(0)}% correct` : '—'}
             gto="50–75% pot"
             status={cbetWetRate !== null ? (cbetWetRate < 0.4 ? 'bad' : cbetWetRate < 0.65 ? 'warn' : 'ok') : null}
-            tooltip="Continuation bet sizing accuracy — GTO uses different sizes by board texture: 25-33% on dry/paired boards, 50-75% on wet/connected boards."
+            tooltip="When you raised pre-flop and bet the flop on a wet/connected board: optimal size is 50–75% of the pot to charge flush and straight draws."
             current={cbetWetRate ?? undefined}
             target={0.65}
           />
           <StatRow
-            label={`River thin value (${sessionStats.riverThinValue.spots})`}
+            label={`River value bets (${sessionStats.riverThinValue.spots} spots)`}
             value={riverValueRate !== null ? formatPercent(riverValueRate) : '—'}
             gto="≥65%"
             status={riverValueRate !== null ? (riverValueRate < 0.40 ? 'bad' : riverValueRate < 0.60 ? 'warn' : 'ok') : null}
-            tooltip="Spots where you had 54-72% equity on the river and the action was checked — a small bet here captures 1-2bb that checking surrenders."
+            tooltip="Spots where you had 54–72% equity on the river and nobody bet — a small bet here earns 1–2 extra big blinds that checking gives away for free."
             current={riverValueRate ?? undefined}
             target={0.65}
           />
           <StatRow
-            label={`Bluff follow-through (${sessionStats.bluffFollowThrough.started})`}
+            label={`Bluff follow-through (${sessionStats.bluffFollowThrough.started} started)`}
             value={bluffFTRate !== null ? formatPercent(bluffFTRate) : '—'}
             gto="≥55%"
             status={bluffFTRate !== null ? (bluffFTRate < 0.35 ? 'bad' : bluffFTRate < 0.50 ? 'warn' : 'ok') : null}
-            tooltip="When you bet flop and turn as a bluff, how often you complete the story on the river. Stopping mid-bluff burns the equity invested."
+            tooltip="When you bluffed the flop and turn, how often you completed the bluff on the river. Giving up halfway wastes the chips already invested."
             current={bluffFTRate ?? undefined}
             target={0.55}
           />
           <StatRow
-            label={`Sizing consistency (${sessionStats.preflopSizing.opens} opens)`}
+            label={`Bet sizing consistency (${sessionStats.preflopSizing.opens} raises)`}
             value={preflopSizingRate !== null ? formatPercent(preflopSizingRate) : '—'}
             gto="< 15%"
             status={preflopSizingRate !== null ? (preflopSizingRate > 0.40 ? 'bad' : preflopSizingRate > 0.20 ? 'warn' : 'ok') : null}
-            tooltip="% of preflop opens where your raise size was significantly above GTO standard (2.5bb BTN/CO, 3bb EP). Oversizing with strong hands is a range tell."
+            tooltip="How often your pre-flop raise was significantly larger than standard (2.5× from Button/Cutoff, 3× from early position). Big raises with big hands is a pattern opponents will exploit."
             current={preflopSizingRate ?? undefined}
             target={0.15}
           />
@@ -259,7 +259,7 @@ export const StatsView: React.FC = () => {
       {/* EV chart */}
       {handHistory.length > 1 && (
         <div className="bg-gray-900 border border-gray-800 p-3">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-2">Cumulative EV</div>
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-2">Chips Won Over Time</div>
           <EVChart history={handHistory} />
         </div>
       )}
@@ -296,7 +296,7 @@ export const StatsView: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-xs font-mono text-red-500 font-bold">
-                      {leak.evLostPer100.toFixed(1)} bb/100
+                      {leak.evLostPer100.toFixed(1)} BB / 100 hands
                     </div>
                   </div>
                   <div className="text-xs text-gray-200 font-sans leading-snug">{leak.description}</div>
@@ -320,7 +320,7 @@ export const StatsView: React.FC = () => {
           <div className="text-xs text-gray-600 font-sans">No significant leaks detected yet.</div>
         ) : (
           <div className="text-xs text-gray-600 leading-relaxed font-sans">
-            Analyzes BB defense rate, VPIP, c-bet sizing by board texture, river thin value, and bluff follow-through — the top measured leaks from GTO Wizard + PokerBench research.
+            Analyzes big blind defense, how often you enter pots, continuation bet sizing, river value bets, and bluff follow-through — the top measured leaks from GTO Wizard + PokerBench research.
           </div>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { RangeData, HandKey } from '../../types/gto';
+import { handKeyToReadable } from '../../utils/format';
 
 const RANKS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2'];
 
@@ -53,7 +54,7 @@ export const RangeGrid: React.FC<RangeGridProps> = ({
             return (
               <div
                 key={`${row}-${col}`}
-                title={`${key}: ${Math.round(freq * 100)}%`}
+                title={`${handKeyToReadable(key)}: raise ${Math.round(freq * 100)}% of the time`}
                 style={{
                   width: cellSize,
                   height: cellSize,
@@ -78,10 +79,10 @@ export const RangeGrid: React.FC<RangeGridProps> = ({
       </div>
       <div className="flex gap-3 mt-2 text-xs text-gray-500">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 inline-block bg-emerald-500" />Always
+          <span className="w-3 h-3 inline-block bg-emerald-500" />Always play
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 inline-block bg-amber-600" />Mixed
+          <span className="w-3 h-3 inline-block bg-amber-600" />Sometimes
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 inline-block bg-gray-800 border border-gray-600" />Fold
