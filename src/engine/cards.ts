@@ -30,6 +30,11 @@ export function rankToChar(rank: number): string {
   return chars[rank];
 }
 
+export function rankToDisplay(rank: number): string {
+  const chars = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+  return chars[rank];
+}
+
 export function suitToChar(suit: number): string {
   const chars = ['c', 'd', 'h', 's'];
   return chars[suit];

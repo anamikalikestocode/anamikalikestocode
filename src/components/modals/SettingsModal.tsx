@@ -61,7 +61,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   } = useSettingsStore();
 
   return (
-    <div className="absolute inset-0 bg-gray-950/98 z-50 flex flex-col">
+    <div className="fixed inset-0 bg-gray-950 z-50 flex flex-col max-w-lg mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3 shrink-0">
         <div>
@@ -167,9 +167,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
                 }`}
               >
                 <div className="text-sm font-bold">{name}</div>
-                <div className={`text-[10px] font-mono mt-0.5 ${stackSize === value ? 'text-emerald-500' : 'text-gray-700'}`}>
-                  {value} big blinds
-                </div>
                 <div className={`text-[10px] font-sans mt-1 leading-tight ${stackSize === value ? 'text-gray-300' : 'text-gray-700'}`}>
                   {desc}
                 </div>

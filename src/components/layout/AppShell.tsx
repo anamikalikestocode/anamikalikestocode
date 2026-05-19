@@ -54,10 +54,10 @@ export const AppShell: React.FC = () => {
             {DIFFICULTY_SHORT[difficulty]}
           </span>
           <span className="text-gray-700">·</span>
-          <span>{numOpponents === 1 ? 'heads up' : `${numOpponents} opponents`}</span>
+          <span>{numOpponents === 1 ? '1 opponent' : `${numOpponents} opponents`}</span>
           <span className="text-gray-700">·</span>
-          <span>{stackSize} big blinds</span>
-          <span className="text-emerald-700 ml-1">↻ switch</span>
+          <span>{{ 20: 'Short stack', 40: 'Medium stack', 100: 'Deep stack' }[stackSize]}</span>
+          <span className="text-emerald-700 ml-1">↻ change</span>
         </button>
       </div>
 
