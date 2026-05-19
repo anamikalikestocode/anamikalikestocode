@@ -4,7 +4,7 @@ import { Card } from '../shared/Card';
 import { Badge } from '../shared/Badge';
 import { EquityMeter } from './EquityMeter';
 import { GTOHintPanel } from './GTOHintPanel';
-import { formatEV, formatStack } from '../../utils/format';
+import { formatEV, formatStack, positionName, streetName, actionLabel } from '../../utils/format';
 
 interface HandReplayProps {
   hand: HandSnapshot;
@@ -44,13 +44,13 @@ export const HandReplay: React.FC<HandReplayProps> = ({ hand, onClose }) => {
           <button
             key={i}
             onClick={() => setStreetIdx(i)}
-            className={`flex-1 py-1.5 text-xs uppercase tracking-wide transition-colors ${
+            className={`flex-1 py-1.5 text-xs tracking-wide transition-colors ${
               i === streetIdx
                 ? 'bg-gray-800 text-gray-100 border-b-2 border-emerald-500'
                 : 'text-gray-500 hover:text-gray-300'
             } ${s.hint?.verdict === 'mistake' || s.hint?.verdict === 'spew' ? 'text-red-500' : ''}`}
           >
-            {s.street}
+            {streetName(s.street)}
             {s.hint && s.hint.verdict !== 'gto' && s.hint.verdict !== 'acceptable' && (
               <span className="ml-1 text-red-500">!</span>
             )}
@@ -77,7 +77,7 @@ export const HandReplay: React.FC<HandReplayProps> = ({ hand, onClose }) => {
             <Card card={hand.heroCards[0]} size="sm" />
             <Card card={hand.heroCards[1]} size="sm" />
           </div>
-          <div className="text-xs text-gray-400">{street.heroPosition} · {formatStack(street.heroStack)}bb</div>
+          <div className="text-xs text-gray-400">{positionName(street.heroPosition)} · {formatStack(street.heroStack)} BB</div>
         </div>
 
         {/* Actions this street */}
@@ -92,7 +92,7 @@ export const HandReplay: React.FC<HandReplayProps> = ({ hand, onClose }) => {
                   a.type === 'RAISE' ? 'text-emerald-400' :
                   a.type === 'CALL' ? 'text-blue-400' : 'text-gray-300'
                 }`}>
-                  {a.type}{a.amount ? ` ${a.amount.toFixed(1)}` : ''}
+                  {actionLabel(a.type)}{a.amount ? ` ${a.amount.toFixed(1)} BB` : ''}
                 </span>
               </div>
             ))}
