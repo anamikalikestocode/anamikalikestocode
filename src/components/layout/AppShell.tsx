@@ -22,7 +22,7 @@ export const AppShell: React.FC = () => {
       <div className="flex items-center justify-between border-b border-gray-800 px-4 py-2.5 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-emerald-500 text-base leading-none">◆</span>
-          <span className="text-sm font-bold text-gray-100">GTO Trainer</span>
+          <span className="text-sm font-bold text-gray-100">Poker Trainer</span>
         </div>
         <button
           onClick={() => setSettingsOpen(true)}

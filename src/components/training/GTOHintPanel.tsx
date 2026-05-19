@@ -55,7 +55,7 @@ export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pen
         <div className="text-right space-y-0.5">
           {hint.evDeltaBB !== null && hint.evDeltaBB !== 0 && (
             <div className={`text-sm font-mono font-bold ${hint.evDeltaBB < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {hint.evDeltaBB < 0 ? '−' : '+'}{Math.abs(hint.evDeltaBB).toFixed(2)} BB
+              {hint.evDeltaBB < 0 ? '−' : '+'}{Math.abs(hint.evDeltaBB).toFixed(2)} big blinds
             </div>
           )}
           {hint.evDeltaPer100 !== null && hint.evDeltaPer100 !== 0 && (

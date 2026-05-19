@@ -2,11 +2,11 @@ import React from 'react';
 import { DecisionVerdict } from '../../types/gto';
 
 const VERDICT_CONFIG: Record<DecisionVerdict, { label: string; classes: string }> = {
-  gto:        { label: 'GTO',        classes: 'bg-emerald-950 text-emerald-400 border-emerald-800' },
-  acceptable: { label: 'ACCEPTABLE', classes: 'bg-green-950 text-green-400 border-green-800'       },
-  marginal:   { label: 'MARGINAL',   classes: 'bg-amber-950 text-amber-400 border-amber-800'       },
-  mistake:    { label: 'MISTAKE',    classes: 'bg-orange-950 text-orange-400 border-orange-800'    },
-  spew:       { label: 'SPEW',       classes: 'bg-red-950 text-red-400 border-red-800'             },
+  gto:        { label: 'Optimal',    classes: 'bg-emerald-950 text-emerald-400 border-emerald-800' },
+  acceptable: { label: 'Good',       classes: 'bg-green-950 text-green-400 border-green-800'       },
+  marginal:   { label: 'Close call', classes: 'bg-amber-950 text-amber-400 border-amber-800'       },
+  mistake:    { label: 'Mistake',    classes: 'bg-orange-950 text-orange-400 border-orange-800'    },
+  spew:       { label: 'Blunder',    classes: 'bg-red-950 text-red-400 border-red-800'             },
 };
 
 interface BadgeProps {
