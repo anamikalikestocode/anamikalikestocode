@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card as CardType } from '../../types/cards';
-import { cardRank, cardSuit, rankToChar, suitToChar } from '../../engine/cards';
+import { cardRank, cardSuit, rankToDisplay, suitToChar } from '../../engine/cards';
 
 const SUIT_SYMBOLS = ['♣', '♦', '♥', '♠'];
 
@@ -63,7 +63,7 @@ export const Card: React.FC<CardProps> = ({
 
   const rank = cardRank(card);
   const suit = cardSuit(card);
-  const rankChar = rankToChar(rank);
+  const rankChar = rankToDisplay(rank);
   const suitChar = SUIT_SYMBOLS[suit];
   const colorClass = SUIT_COLORS[suit];
 

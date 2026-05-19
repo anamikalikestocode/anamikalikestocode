@@ -153,7 +153,7 @@ export function createInitialState(
   for (let i = 0; i < clamped; i++) {
     players.push({
       id: i,
-      name: i === 0 ? 'Hero' : `Villain ${i}`,
+      name: i === 0 ? 'You' : ['Alex', 'Jordan', 'Sam', 'Riley', 'Morgan', 'Casey', 'Taylor', 'Drew'][i - 1] ?? `Player ${i}`,
       stack: stackSize,
       holeCards: null,
       position: positionMap[i] ?? 'UTG',

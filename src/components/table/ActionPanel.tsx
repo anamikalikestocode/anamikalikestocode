@@ -99,8 +99,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
               className="flex-1 accent-emerald-500"
             />
             <span className="text-xs font-mono text-emerald-400 w-20 text-right shrink-0">
-              {raiseAmount.toFixed(1)} big blinds
-            </span>
+              {raiseAmount.toFixed(1)}            </span>
           </div>
         </div>
       )}
@@ -128,16 +127,14 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
             onClick={() => onAction({ type: 'PLAYER_CALL', playerId: heroId }, heroEquity ?? undefined)}
             className="py-3 px-3 bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 text-blue-200 text-sm font-bold uppercase tracking-wide transition-colors"
           >
-            Call {callAmount.toFixed(1)} big blinds
-          </button>
+            Call {callAmount.toFixed(1)}          </button>
         )}
         {canRaise && (
           <button
             onClick={() => onAction({ type: 'PLAYER_RAISE', playerId: heroId, amount: raiseAmount }, heroEquity ?? undefined)}
             className="py-3 px-3 bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 hover:border-emerald-500 text-emerald-200 text-sm font-bold uppercase tracking-wide transition-colors"
           >
-            Raise {raiseAmount.toFixed(1)} big blinds
-          </button>
+            Raise {raiseAmount.toFixed(1)}          </button>
         )}
       </div>
     </div>
