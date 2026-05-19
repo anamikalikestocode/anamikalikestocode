@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { GTOHint } from '../../types/gto';
 import { Badge } from '../shared/Badge';
 import { RangeGrid } from './RangeGrid';
@@ -12,100 +12,180 @@ interface GTOHintPanelProps {
 }
 
 export const GTOHintPanel: React.FC<GTOHintPanelProps> = ({ hint, heroCards, pending }) => {
+  const [expanded, setExpanded] = useState(false);
+
   if (pending) {
     return (
-      <div className="bg-gray-900 border border-gray-700 p-3 text-xs text-gray-500">
-        Analyzing...
+      <div className="bg-gray-900 border-t border-gray-800 p-3 text-[11px] text-gray-500 font-sans tracking-wide">
+        Analyzing…
       </div>
     );
   }
 
+  // Parse sizing tell
+  const rawExplanation = hint.explanation;
+  const isSizingTell = rawExplanation.startsWith('[SIZING TELL]');
+  const explanation = isSizingTell
+    ? rawExplanation.replace(/^\[SIZING TELL\]\s*/, '')
+    : rawExplanation;
+
   const heroKey = heroCards ? handToKey(heroCards) : null;
 
+  // Action match
+  const actionsMatch = hint.gtoAction === hint.playerAction;
+
+  // Equity metrics
+  const showEquity = hint.equity !== undefined && hint.requiredEquity !== undefined;
+  const equityPct   = showEquity ? Math.round((hint.equity ?? 0) * 100) : 0;
+  const reqPct      = showEquity ? Math.round((hint.requiredEquity ?? 0) * 100) : 0;
+  const marginPct   = equityPct - reqPct;
+
+  // Truncate long explanations
+  const TRUNCATE_AT = 200;
+  const isLong = explanation.length > TRUNCATE_AT;
+  const displayExplanation = isLong && !expanded
+    ? explanation.slice(0, TRUNCATE_AT).trimEnd() + '…'
+    : explanation;
+
   return (
-    <div className="bg-gray-900 border border-gray-700 space-y-3 p-3">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
+    <div className="bg-gray-900 border-t border-gray-800 space-y-3 p-4">
+      {/* 1. Header row: badge + EV */}
+      <div className="flex items-start justify-between">
         <Badge verdict={hint.verdict} />
         <div className="text-right space-y-0.5">
           {hint.evDeltaBB !== null && hint.evDeltaBB !== 0 && (
-            <div className={`text-xs font-mono font-bold ${hint.evDeltaBB < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
-              {formatEV(hint.evDeltaBB)} EV
+            <div className={`text-sm font-mono font-bold ${hint.evDeltaBB < 0 ? 'text-red-400' : 'text-emerald-400'}`}>
+              {hint.evDeltaBB < 0 ? '−' : '+'}{Math.abs(hint.evDeltaBB).toFixed(2)} bb
             </div>
           )}
           {hint.evDeltaPer100 !== null && hint.evDeltaPer100 !== 0 && (
-            <div className="text-xs text-gray-500">
-              {hint.evDeltaPer100 < 0 ? '' : '+'}{hint.evDeltaPer100.toFixed(1)} bb/100
+            <div className="text-[11px] font-mono text-gray-500">
+              {hint.evDeltaPer100 < 0 ? '−' : '+'}{Math.abs(hint.evDeltaPer100).toFixed(1)}/100
             </div>
           )}
         </div>
       </div>
 
-      {/* Action comparison */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
-        <div className="bg-gray-800 px-2 py-1.5">
-          <div className="text-gray-500 mb-0.5">YOU PLAYED</div>
-          <div className="font-bold uppercase text-gray-100">{hint.playerAction}</div>
+      {/* 2. Sizing tell alert */}
+      {isSizingTell && (
+        <div className="bg-amber-950 border border-amber-800 p-3 space-y-1">
+          <div className="text-[11px] font-bold uppercase tracking-widest text-amber-400">
+            ⚠ SIZING TELL
+          </div>
+          <p className="text-xs font-sans text-amber-300 leading-relaxed">{explanation}</p>
         </div>
-        <div className="bg-gray-800 px-2 py-1.5">
-          <div className="text-gray-500 mb-0.5">GTO LINE</div>
-          <div className={`font-bold uppercase ${
-            hint.gtoAction === hint.playerAction ? 'text-emerald-400' : 'text-yellow-400'
-          }`}>
+      )}
+
+      {/* 3. Action comparison: YOU vs GTO */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className={`px-3 py-2 border ${actionsMatch ? 'bg-emerald-950 border-emerald-800' : 'bg-gray-800 border-gray-700'}`}>
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">YOU</div>
+          <div className={`text-sm font-bold uppercase font-mono ${actionsMatch ? 'text-emerald-400' : 'text-gray-300'}`}>
+            {hint.playerAction}
+          </div>
+        </div>
+        <div className="bg-emerald-950 border border-emerald-800 px-3 py-2">
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-1">GTO</div>
+          <div className="text-sm font-bold uppercase font-mono text-emerald-400">
             {hint.gtoAction}
-            {hint.gtoRaiseFreq > 0 && hint.gtoRaiseFreq < 1 &&
-              <span className="text-gray-400 font-normal ml-1">
+            {hint.gtoRaiseFreq > 0 && hint.gtoRaiseFreq < 1 && (
+              <span className="text-emerald-600 font-normal ml-1">
                 {Math.round(hint.gtoRaiseFreq * 100)}%
               </span>
-            }
+            )}
+            {hint.gtoCallFreq > 0 && hint.gtoCallFreq < 1 && hint.gtoRaiseFreq === 0 && (
+              <span className="text-emerald-600 font-normal ml-1">
+                {Math.round(hint.gtoCallFreq * 100)}%
+              </span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Mixed strategy breakdown */}
+      {/* 4. Solver equity metrics (postflop) */}
+      {showEquity && (
+        <div className="grid grid-cols-3 gap-2">
+          <div className="text-center">
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Eq</div>
+            <div className="text-sm font-mono font-bold text-gray-200">{equityPct}%</div>
+          </div>
+          <div className="text-center">
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Req</div>
+            <div className="text-sm font-mono font-bold text-gray-200">{reqPct}%</div>
+          </div>
+          <div className="text-center">
+            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Margin</div>
+            <div className={`text-sm font-mono font-bold ${marginPct >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {marginPct >= 0 ? '+' : ''}{marginPct}%
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. GTO mix bar */}
       {(hint.gtoRaiseFreq > 0 || hint.gtoCallFreq > 0) && (
-        <div className="space-y-1">
-          <div className="text-xs text-gray-500 uppercase tracking-wide">GTO Mix</div>
-          <div className="flex gap-1 h-2">
+        <div className="space-y-1.5">
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">GTO Mix</div>
+          <div className="flex h-1.5 gap-px overflow-hidden rounded-sm bg-gray-800">
             {hint.gtoRaiseFreq > 0.01 && (
               <div
-                className="bg-emerald-600 rounded-sm"
+                className="bg-emerald-600"
                 style={{ width: `${hint.gtoRaiseFreq * 100}%` }}
                 title={`Raise ${Math.round(hint.gtoRaiseFreq * 100)}%`}
               />
             )}
             {hint.gtoCallFreq > 0.01 && (
               <div
-                className="bg-blue-600 rounded-sm"
+                className="bg-blue-600"
                 style={{ width: `${hint.gtoCallFreq * 100}%` }}
                 title={`Call ${Math.round(hint.gtoCallFreq * 100)}%`}
               />
             )}
             {hint.gtoFoldFreq > 0.01 && (
               <div
-                className="bg-gray-600 rounded-sm"
+                className="bg-gray-600"
                 style={{ width: `${hint.gtoFoldFreq * 100}%` }}
                 title={`Fold ${Math.round(hint.gtoFoldFreq * 100)}%`}
               />
             )}
           </div>
-          <div className="flex gap-3 text-xs text-gray-500">
-            {hint.gtoRaiseFreq > 0.01 && <span className="text-emerald-500">R {Math.round(hint.gtoRaiseFreq * 100)}%</span>}
-            {hint.gtoCallFreq > 0.01 && <span className="text-blue-400">C {Math.round(hint.gtoCallFreq * 100)}%</span>}
-            {hint.gtoFoldFreq > 0.01 && <span className="text-gray-400">F {Math.round(hint.gtoFoldFreq * 100)}%</span>}
+          <div className="flex gap-3 text-[11px]">
+            {hint.gtoRaiseFreq > 0.01 && (
+              <span className="text-emerald-500 font-mono">R {Math.round(hint.gtoRaiseFreq * 100)}%</span>
+            )}
+            {hint.gtoCallFreq > 0.01 && (
+              <span className="text-blue-400 font-mono">C {Math.round(hint.gtoCallFreq * 100)}%</span>
+            )}
+            {hint.gtoFoldFreq > 0.01 && (
+              <span className="text-gray-500 font-mono">F {Math.round(hint.gtoFoldFreq * 100)}%</span>
+            )}
           </div>
         </div>
       )}
 
-      {/* Explanation */}
-      <p className="text-xs text-gray-300 leading-relaxed border-t border-gray-800 pt-2">
-        {hint.explanation}
-      </p>
+      {/* 6. Explanation text */}
+      {!isSizingTell && (
+        <div className="border-t border-gray-800 pt-3 space-y-1">
+          <p className="text-sm font-sans text-gray-400 leading-relaxed">
+            {displayExplanation}
+          </p>
+          {isLong && (
+            <button
+              onClick={() => setExpanded(e => !e)}
+              className="text-[11px] text-gray-600 hover:text-gray-400 transition-colors"
+            >
+              {expanded ? 'Less ↑' : 'More ↓'}
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Range grid (preflop) */}
+      {/* 7. Range grid (preflop) */}
       {hint.rangeData && heroKey && (
-        <div className="border-t border-gray-800 pt-2">
-          <div className="text-xs text-gray-500 mb-1.5 uppercase tracking-wide">Position Range</div>
+        <div className="border-t border-gray-800 pt-3">
+          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500 mb-2">
+            Position Range
+          </div>
           <RangeGrid rangeData={hint.rangeData} heroHand={heroKey} compact />
         </div>
       )}
