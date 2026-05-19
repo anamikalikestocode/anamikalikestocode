@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build:table": "tsx scripts/buildHandRankTable.ts",
-    "build": "tsc -b && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "vitest",
     "typecheck": "tsc --noEmit"

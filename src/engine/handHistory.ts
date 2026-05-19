@@ -1,21 +1,16 @@
 import { HandCards, BoardCards } from '../types/cards';
+import { Position } from '../types/game';
+import { SpotType } from '../types/gto';
 import { StreetSnapshot, HandSnapshot } from '../types/training';
 
-/**
- * Create an immutable snapshot record for a completed hand.
- *
- * @param handNumber  Sequential hand counter (1-based).
- * @param heroCards   Hero's hole cards.
- * @param finalBoard  All 5 community cards (may be fewer if hand ended early).
- * @param streets     Per-street snapshots captured during play.
- * @param heroNet     Net BB result for the hero (positive = won, negative = lost).
- */
 export function createHandSnapshot(
   handNumber: number,
   heroCards: HandCards,
   finalBoard: BoardCards,
   streets: StreetSnapshot[],
   heroNet: number,
+  heroPosition: Position,
+  numPlayers: number,
 ): HandSnapshot {
   return {
     id: `hand-${handNumber}-${Date.now()}`,
@@ -25,34 +20,29 @@ export function createHandSnapshot(
     heroNet,
     heroCards,
     finalBoard,
+    heroPosition,
+    numPlayers,
     mistakes: countMistakes(streets),
+    spews: countSpews(streets),
     evDelta: calculateHandEvDelta(streets),
+    spotTypes: [...new Set(streets.map(s => s.spotType))] as SpotType[],
   };
 }
 
-/**
- * Sum the EV delta (vs GTO) across every hinted decision in the hand.
- * evDelta values are negative when the player made a worse-than-optimal play.
- */
 export function calculateHandEvDelta(streets: StreetSnapshot[]): number {
   let total = 0;
   for (const street of streets) {
-    if (street.hint?.evDelta != null) {
-      total += street.hint.evDelta;
+    if (street.hint?.evDeltaBB != null) {
+      total += street.hint.evDeltaBB;
     }
   }
   return total;
 }
 
-/**
- * Count how many decisions in the hand received a 'mistake' verdict.
- */
 export function countMistakes(streets: StreetSnapshot[]): number {
-  let count = 0;
-  for (const street of streets) {
-    if (street.hint?.verdict === 'mistake') {
-      count++;
-    }
-  }
-  return count;
+  return streets.filter(s => s.hint?.verdict === 'mistake').length;
+}
+
+export function countSpews(streets: StreetSnapshot[]): number {
+  return streets.filter(s => s.hint?.verdict === 'spew').length;
 }

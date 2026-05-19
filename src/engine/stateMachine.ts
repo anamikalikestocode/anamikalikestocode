@@ -3,6 +3,8 @@ import {
   GameAction,
   Player,
   Position,
+  Street,
+  SidePot,
   ValidActions,
   Difficulty,
   StreetAction,
