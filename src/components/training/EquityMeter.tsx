@@ -1,5 +1,4 @@
 import React from 'react';
-import { formatPercent } from '../../utils/format';
 
 interface EquityMeterProps {
   equity: number | null;
@@ -15,50 +14,53 @@ export const EquityMeter: React.FC<EquityMeterProps> = ({
 }) => {
   if (loading || equity === null) {
     return (
-      <div className="bg-gray-900 border-t border-gray-800 px-3 py-2 flex items-center gap-3">
-        <span className="text-xs text-gray-500 font-sans">Calculating odds…</span>
-        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-          <div className="h-full bg-gray-700 animate-pulse w-1/2 rounded-full" />
-        </div>
+      <div className="px-4 py-2 border-t border-gray-800">
+        <span className="text-xs text-gray-600 animate-pulse">Calculating odds…</span>
       </div>
     );
   }
 
-  const eqPct = equity * 100;
-  const reqPct = requiredEquity ? requiredEquity * 100 : null;
+  const eqPct = Math.round(equity * 100);
+  const reqPct = requiredEquity !== null ? Math.round(requiredEquity * 100) : null;
   const isGood = reqPct !== null ? equity >= requiredEquity! : null;
 
-  const barColor = isGood === null ? 'bg-blue-500' : isGood ? 'bg-emerald-500' : 'bg-red-500';
-  const numColor = isGood === null ? 'text-blue-400' : isGood ? 'text-emerald-400' : 'text-red-400';
-
-  return (
-    <div className="bg-gray-900 border-t border-gray-800 px-3 py-2 space-y-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500 font-sans">Your chance of winning</span>
-        <div className="flex items-center gap-2">
-          {reqPct !== null && (
-            <span className="text-[11px] text-gray-600 font-sans">
-              need {formatPercent(requiredEquity!)} to call
-            </span>
-          )}
-          <span className={`text-sm font-bold font-mono ${numColor}`}>
-            {formatPercent(equity)}
-          </span>
+  // Facing a bet — plain English verdict
+  if (reqPct !== null) {
+    return (
+      <div className={`px-4 py-2.5 border-t flex items-center justify-between gap-4 ${
+        isGood
+          ? 'border-emerald-900/40 bg-emerald-950/25'
+          : 'border-red-900/40 bg-red-950/15'
+      }`}>
+        <div className="text-sm leading-snug">
+          <span className="text-gray-400">You win </span>
+          <span className={`font-bold ${isGood ? 'text-emerald-400' : 'text-red-400'}`}>{eqPct}%</span>
+          <span className="text-gray-600"> of the time · only need </span>
+          <span className="text-gray-400 font-medium">{reqPct}%</span>
+          <span className="text-gray-600"> to break even</span>
         </div>
+        <span className={`text-xl font-bold shrink-0 ${isGood ? 'text-emerald-400' : 'text-red-400'}`}>
+          {isGood ? '✓' : '✗'}
+        </span>
       </div>
-      <div className="relative h-2 bg-gray-800 rounded-full overflow-visible">
+    );
+  }
+
+  // No bet — just show win rate with a clean bar
+  return (
+    <div className="px-4 py-2.5 border-t border-gray-800 flex items-center gap-3">
+      <span className="text-xs text-gray-500 shrink-0">You win this hand</span>
+      <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-300 ${barColor}`}
-          style={{ width: `${Math.min(100, eqPct)}%` }}
+          className={`h-full rounded-full transition-all duration-500 ${
+            eqPct >= 50 ? 'bg-emerald-500' : eqPct >= 33 ? 'bg-yellow-500' : 'bg-red-500'
+          }`}
+          style={{ width: `${eqPct}%` }}
         />
-        {reqPct !== null && (
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-0.5 h-3.5 bg-white/60 rounded"
-            style={{ left: `${Math.min(100, reqPct)}%` }}
-            title={`You need ${formatPercent(requiredEquity!)} to break even`}
-          />
-        )}
       </div>
+      <span className={`text-sm font-bold font-mono shrink-0 ${
+        eqPct >= 50 ? 'text-emerald-400' : eqPct >= 33 ? 'text-yellow-400' : 'text-red-400'
+      }`}>{eqPct}%</span>
     </div>
   );
 };
