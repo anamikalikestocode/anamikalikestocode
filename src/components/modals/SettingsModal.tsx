@@ -6,14 +6,50 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-const DIFFICULTY_CONFIG: Record<Difficulty, { label: string; desc: string }> = {
-  calling_station: { label: 'Calling Station', desc: 'Calls everything, never folds'          },
-  nit:             { label: 'Nit',              desc: 'Only plays premium hands'                },
-  tag:             { label: 'TAG',              desc: 'Tight-aggressive, solid fundamentals'   },
-  lag:             { label: 'LAG',              desc: 'Loose-aggressive, high 3-bet frequency' },
-  gto:             { label: 'GTO Solver',       desc: 'Solver-based, adapts to your tendencies'},
-  exploitative_reg:{ label: 'Exploitative Reg', desc: 'Targets your specific leaks'            },
-};
+const OPPONENT_STYLES: { id: Difficulty; name: string; sub: string; color: string }[] = [
+  {
+    id: 'calling_station',
+    name: 'The Fish',
+    sub: 'Calls almost everything, rarely folds — great to practice value betting',
+    color: 'border-blue-800 bg-blue-950',
+  },
+  {
+    id: 'nit',
+    name: 'The Rock',
+    sub: "Only plays the very best hands. Patient, but dangerous when they finally bet",
+    color: 'border-gray-700 bg-gray-900',
+  },
+  {
+    id: 'tag',
+    name: 'Solid Player',
+    sub: 'Plays tight, bets when strong, folds weak hands. Standard casino regular',
+    color: 'border-yellow-800 bg-yellow-950',
+  },
+  {
+    id: 'lag',
+    name: 'Aggressive',
+    sub: 'Raises a lot, applies constant pressure — will force tough decisions',
+    color: 'border-orange-800 bg-orange-950',
+  },
+  {
+    id: 'gto',
+    name: 'Pro',
+    sub: 'Near-perfectly balanced — hard to read, hard to exploit. Serious challenge',
+    color: 'border-red-800 bg-red-950',
+  },
+  {
+    id: 'exploitative_reg',
+    name: 'The Shark',
+    sub: 'Finds YOUR specific leaks and punishes them. Gets harder the more you play',
+    color: 'border-red-700 bg-red-950',
+  },
+];
+
+const STACK_OPTIONS: { value: 20 | 40 | 100; name: string; desc: string }[] = [
+  { value: 20,  name: 'Short',  desc: 'Tournament-style — push or fold decisions' },
+  { value: 40,  name: 'Medium', desc: 'Moderate depth — tests post-flop patience' },
+  { value: 100, name: 'Deep',   desc: 'Full stack — all streets, full decisions'  },
+];
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   const {
@@ -25,43 +61,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
   } = useSettingsStore();
 
   return (
-    <div className="absolute inset-0 bg-gray-950/95 z-50 flex flex-col">
+    <div className="absolute inset-0 bg-gray-950/98 z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3">
-        <span className="text-xs font-bold text-gray-300 tracking-widest uppercase">Settings</span>
+      <div className="flex items-center justify-between border-b border-gray-800 px-4 py-3 shrink-0">
+        <div>
+          <div className="text-sm font-bold text-gray-100">Training Setup</div>
+          <div className="text-[11px] text-gray-500 font-sans mt-0.5">Switch modes often — each one trains different skills</div>
+        </div>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-200 text-lg leading-none transition-colors"
-          aria-label="Close settings"
+          className="text-gray-500 hover:text-gray-200 text-lg leading-none transition-colors p-1"
+          aria-label="Close"
         >
           ✕
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Opponent difficulty */}
-        <div className="space-y-2">
+      <div className="flex-1 overflow-y-auto p-4 space-y-7">
+
+        {/* Opponent style */}
+        <div className="space-y-3">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Difficulty</div>
-            <div className="text-xs text-gray-600 font-sans mt-0.5">Controls opponent AI style and aggression</div>
+            <div className="text-xs font-bold text-gray-200 uppercase tracking-widest">Who are you playing against?</div>
+            <div className="text-xs text-gray-500 font-sans mt-1">
+              Switch this up regularly — each opponent exposes different weaknesses in your game.
+            </div>
           </div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {(Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map(d => {
-              const { label, desc } = DIFFICULTY_CONFIG[d];
-              const active = difficulty === d;
+          <div className="grid grid-cols-1 gap-2">
+            {OPPONENT_STYLES.map(({ id, name, sub, color }) => {
+              const active = difficulty === id;
               return (
                 <button
-                  key={d}
-                  onClick={() => setDifficulty(d)}
-                  className={`py-2.5 px-3 text-left border transition-colors space-y-0.5 ${
+                  key={id}
+                  onClick={() => setDifficulty(id)}
+                  className={`w-full text-left px-4 py-3 border-2 transition-all ${
                     active
-                      ? 'bg-emerald-900 border-emerald-600 text-emerald-200'
-                      : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'
+                      ? `${color} border-opacity-100`
+                      : 'bg-gray-900 border-gray-800 hover:border-gray-600'
                   }`}
                 >
-                  <div className="text-xs font-bold">{label}</div>
-                  <div className={`text-[10px] font-sans leading-tight ${active ? 'text-emerald-400/70' : 'text-gray-600'}`}>
-                    {desc}
+                  <div className="flex items-center justify-between">
+                    <span className={`text-sm font-bold ${active ? 'text-white' : 'text-gray-300'}`}>
+                      {name}
+                    </span>
+                    {active && (
+                      <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <div className={`text-xs font-sans mt-1 leading-snug ${active ? 'text-gray-300' : 'text-gray-600'}`}>
+                    {sub}
                   </div>
                 </button>
               );
@@ -69,81 +119,125 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ onClose }) => {
           </div>
         </div>
 
-        {/* Num opponents */}
-        <div className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Opponents</div>
-          <div className="flex gap-1.5">
+        {/* Opponents count */}
+        <div className="space-y-3">
+          <div>
+            <div className="text-xs font-bold text-gray-200 uppercase tracking-widest">Table size</div>
+            <div className="text-xs text-gray-500 font-sans mt-1">
+              Heads-up (1 opponent) is the most intense. More players = more patience required.
+            </div>
+          </div>
+          <div className="flex gap-2">
             {[1, 2, 3, 5, 8].map(n => (
               <button
                 key={n}
                 onClick={() => setNumOpponents(n)}
-                className={`flex-1 py-2 text-xs border transition-colors ${
+                className={`flex-1 py-3 text-sm font-bold border-2 transition-all ${
                   numOpponents === n
-                    ? 'bg-emerald-900 border-emerald-600 text-emerald-200'
-                    : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'
+                    ? 'bg-emerald-900 border-emerald-500 text-emerald-200'
+                    : 'bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-600'
                 }`}
               >
                 {n}
+                <div className={`text-[9px] font-normal mt-0.5 ${numOpponents === n ? 'text-emerald-400' : 'text-gray-700'}`}>
+                  {n === 1 ? 'heads up' : n === 2 ? '3-way' : n === 3 ? '4-way' : n === 5 ? '6-handed' : 'full ring'}
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Stack depth */}
-        <div className="space-y-2">
+        {/* Stack size */}
+        <div className="space-y-3">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Starting Stack</div>
-            <div className="text-xs text-gray-600 font-sans mt-0.5">Affects preflop push/fold ranges and stack-off thresholds</div>
+            <div className="text-xs font-bold text-gray-200 uppercase tracking-widest">Starting chips</div>
+            <div className="text-xs text-gray-500 font-sans mt-1">
+              Fewer chips = fewer decisions per hand. Start short to learn faster.
+            </div>
           </div>
-          <div className="flex gap-1.5">
-            {([20, 40, 100] as const).map(s => (
+          <div className="grid grid-cols-3 gap-2">
+            {STACK_OPTIONS.map(({ value, name, desc }) => (
               <button
-                key={s}
-                onClick={() => setStackSize(s)}
-                className={`flex-1 py-2 text-xs border transition-colors ${
-                  stackSize === s
-                    ? 'bg-emerald-900 border-emerald-600 text-emerald-200'
-                    : 'bg-gray-900 border-gray-700 text-gray-400 hover:border-gray-500'
+                key={value}
+                onClick={() => setStackSize(value)}
+                className={`py-3 px-2 text-left border-2 transition-all ${
+                  stackSize === value
+                    ? 'bg-emerald-900 border-emerald-500 text-emerald-200'
+                    : 'bg-gray-900 border-gray-800 text-gray-400 hover:border-gray-600'
                 }`}
               >
-                {s}bb
+                <div className="text-sm font-bold">{name}</div>
+                <div className={`text-[10px] font-mono mt-0.5 ${stackSize === value ? 'text-emerald-500' : 'text-gray-700'}`}>
+                  {value} big blinds
+                </div>
+                <div className={`text-[10px] font-sans mt-1 leading-tight ${stackSize === value ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {desc}
+                </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* Training overlays */}
-        <div className="space-y-2">
+        {/* Training aids */}
+        <div className="space-y-3">
           <div>
-            <div className="text-[11px] font-medium uppercase tracking-widest text-gray-500">Training Overlays</div>
-            <div className="text-xs text-gray-600 font-sans mt-0.5">Toggle real-time training aids</div>
+            <div className="text-xs font-bold text-gray-200 uppercase tracking-widest">Training aids</div>
+            <div className="text-xs text-gray-500 font-sans mt-1">
+              Turn these off once you feel confident to test yourself without help.
+            </div>
           </div>
           <div className="space-y-2">
-            {[
-              { label: 'Real-time Equity Meter', value: showEquityRealtime, toggle: toggleEquity },
-              { label: 'GTO Hints After Action',  value: showGTOHints,       toggle: toggleGTOHints },
-            ].map(({ label, value, toggle }) => (
-              <button
-                key={label}
-                onClick={toggle}
-                className="w-full flex items-center justify-between py-2.5 px-3 bg-gray-900 border border-gray-800 hover:border-gray-600 transition-colors"
-              >
-                <span className="text-xs text-gray-300 font-sans">{label}</span>
-                <span className={`text-xs font-bold font-mono ${value ? 'text-emerald-400' : 'text-gray-600'}`}>
-                  {value ? 'ON' : 'OFF'}
-                </span>
-              </button>
-            ))}
+            <button
+              onClick={toggleEquity}
+              className={`w-full flex items-start gap-4 py-3.5 px-4 border-2 transition-all text-left ${
+                showEquityRealtime
+                  ? 'bg-emerald-950 border-emerald-700'
+                  : 'bg-gray-900 border-gray-800 hover:border-gray-600'
+              }`}
+            >
+              <div className={`text-sm font-bold mt-0.5 w-8 shrink-0 text-center ${showEquityRealtime ? 'text-emerald-400' : 'text-gray-600'}`}>
+                {showEquityRealtime ? 'ON' : 'OFF'}
+              </div>
+              <div>
+                <div className={`text-sm font-bold ${showEquityRealtime ? 'text-white' : 'text-gray-400'}`}>
+                  Win odds
+                </div>
+                <div className={`text-xs font-sans mt-0.5 leading-snug ${showEquityRealtime ? 'text-gray-300' : 'text-gray-600'}`}>
+                  Shows how likely you are to win the hand right now. Recalculates each street.
+                </div>
+              </div>
+            </button>
+            <button
+              onClick={toggleGTOHints}
+              className={`w-full flex items-start gap-4 py-3.5 px-4 border-2 transition-all text-left ${
+                showGTOHints
+                  ? 'bg-emerald-950 border-emerald-700'
+                  : 'bg-gray-900 border-gray-800 hover:border-gray-600'
+              }`}
+            >
+              <div className={`text-sm font-bold mt-0.5 w-8 shrink-0 text-center ${showGTOHints ? 'text-emerald-400' : 'text-gray-600'}`}>
+                {showGTOHints ? 'ON' : 'OFF'}
+              </div>
+              <div>
+                <div className={`text-sm font-bold ${showGTOHints ? 'text-white' : 'text-gray-400'}`}>
+                  Coach mode
+                </div>
+                <div className={`text-xs font-sans mt-0.5 leading-snug ${showGTOHints ? 'text-gray-300' : 'text-gray-600'}`}>
+                  After each decision, shows what the best play was and explains why. Turn off to test yourself.
+                </div>
+              </div>
+            </button>
           </div>
         </div>
+
       </div>
 
-      <div className="border-t border-gray-800 p-3">
+      <div className="border-t border-gray-800 p-4 shrink-0">
         <button
           onClick={onClose}
-          className="w-full py-2.5 bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 text-emerald-200 text-sm font-bold uppercase tracking-wide transition-colors"
+          className="w-full py-3 bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 text-emerald-200 text-sm font-bold tracking-wide transition-colors"
         >
-          Done
+          Start playing
         </button>
       </div>
     </div>
