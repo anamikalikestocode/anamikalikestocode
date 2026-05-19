@@ -22,7 +22,7 @@ function stackDepth(stack: number): '20bb' | '40bb' | '100bb' {
   return '100bb';
 }
 
-function classifyBoardTexture(board: number[]): BoardTexture {
+export function classifyBoardTexture(board: number[]): BoardTexture {
   if (board.length < 3) return 'dry';
   const suits = board.map(c => c & 3);
   const suitCounts: Record<number, number> = {};
@@ -140,6 +140,67 @@ function buildPreflop(
   };
 }
 
+// ── C-bet sizing analysis (research-backed: dry=25-33%, wet=50-66%) ──────────
+export interface CbetSizingAnalysis {
+  texture: 'dry' | 'wet' | 'monotone' | 'paired';
+  playerBetFraction: number;    // hero's bet as fraction of pot
+  gtoMinFraction: number;
+  gtoMaxFraction: number;
+  isCorrect: boolean;
+  sizingNote: string;
+}
+
+export function analyzeCbetSizing(
+  betAmount: number,
+  pot: number,
+  texture: BoardTexture,
+): CbetSizingAnalysis {
+  const frac = pot > 0 ? betAmount / pot : 0;
+
+  const ranges: Record<BoardTexture, { min: number; max: number; label: string }> = {
+    dry:              { min: 0.25, max: 0.40, label: 'dry board — GTO: 25–40% pot' },
+    wet:              { min: 0.50, max: 0.75, label: 'wet board — GTO: 50–75% pot' },
+    paired:           { min: 0.25, max: 0.45, label: 'paired board — GTO: 25–45% pot' },
+    monotone:         { min: 0.45, max: 0.70, label: 'monotone board — GTO: 45–70% pot' },
+    rainbow_connected:{ min: 0.45, max: 0.65, label: 'connected board — GTO: 45–65% pot' },
+  };
+
+  const range = ranges[texture] ?? ranges.dry;
+  const isCorrect = frac >= range.min && frac <= range.max;
+
+  let sizingNote = '';
+  if (!isCorrect) {
+    if (frac < range.min) {
+      sizingNote = `Bet too small (${(frac * 100).toFixed(0)}% pot) on ${range.label}. Draws call too cheaply.`;
+    } else {
+      sizingNote = `Bet too large (${(frac * 100).toFixed(0)}% pot) on ${range.label}. Over-sizing is a range tell — it signals strong hands only.`;
+    }
+  } else {
+    sizingNote = `Good sizing (${(frac * 100).toFixed(0)}% pot) for ${range.label}.`;
+  }
+
+  return {
+    texture: texture === 'rainbow_connected' ? 'wet' : texture as any,
+    playerBetFraction: frac,
+    gtoMinFraction: range.min,
+    gtoMaxFraction: range.max,
+    isCorrect,
+    sizingNote,
+  };
+}
+
+// ── River thin value detection ───────────────────────────────────────────────
+// Research shows checking back 55–70% equity on river is top-3 leak
+export function isRiverThinValueSpot(
+  equity: number,
+  playerAction: GTOAction,
+  facingBet: boolean,
+): { isThinValue: boolean; missedValue: boolean } {
+  const isThinValue = equity >= 0.54 && equity <= 0.72 && !facingBet;
+  const missedValue = isThinValue && (playerAction === 'check');
+  return { isThinValue, missedValue };
+}
+
 export function getGTOHint(
   state: GameState,
   heroAction: GameAction,
@@ -156,19 +217,16 @@ export function getGTOHint(
 
   // Postflop — use EV estimator
   const playerAction = mapAction(heroAction);
-  const callAmount = state.currentBet - hero.currentBet;
-  const potAfterCall = state.pot + callAmount;
+  const callAmount = Math.max(0, state.currentBet - hero.currentBet);
   const reqEq = callAmount > 0 ? requiredEquity(callAmount, state.pot) : 0;
   const equity = heroEquity ?? 0.5;
   const heroStack = hero.stack;
   const spr = calcSpr(heroStack, state.pot || 1);
   const inPosition = hero.id > (state.players.find(p => !p.isHero && !p.isFolded)?.id ?? 0);
   const boardTexture = classifyBoardTexture(state.communityCards);
-
-  let spotType: SpotType = 'other';
-  const streetActs = state.actionsThisStreet;
   const facingBet = callAmount > 0;
 
+  let spotType: SpotType = 'other';
   if (state.street === 'flop') {
     spotType = facingBet ? 'flop_vs_cbet' : 'flop_cbet';
   } else if (state.street === 'turn') {
@@ -194,6 +252,24 @@ export function getGTOHint(
 
   const estimate = estimatePostflopDecision(playerAction, ctx);
 
+  // Add c-bet sizing note for flop bets
+  let explanation = estimate.explanation;
+  if ((state.street === 'flop' || state.street === 'turn') && playerAction === 'raise' && state.pot > 0) {
+    const betAmt = (heroAction as { amount?: number }).amount ?? callAmount;
+    const cbetAnalysis = analyzeCbetSizing(betAmt, state.pot, boardTexture);
+    if (!cbetAnalysis.isCorrect) {
+      explanation += ` Sizing: ${cbetAnalysis.sizingNote}`;
+    }
+  }
+
+  // Add river thin value note
+  if (state.street === 'river') {
+    const { isThinValue, missedValue } = isRiverThinValueSpot(equity, playerAction, facingBet);
+    if (missedValue) {
+      explanation += ` Thin value spot: ${(equity * 100).toFixed(0)}% equity — a small bet (25–33% pot) here earns 1–2bb. This is a top-3 measurable leak.`;
+    }
+  }
+
   return {
     verdict: estimate.verdict,
     gtoAction: estimate.recommendedAction,
@@ -201,7 +277,7 @@ export function getGTOHint(
     gtoCallFreq:  estimate.recommendedAction === 'call'  ? 0.7 : 0.2,
     gtoFoldFreq:  estimate.recommendedAction === 'fold'  ? 0.7 : 0.1,
     playerAction,
-    explanation: estimate.explanation,
+    explanation,
     rangeData: null,
     evDeltaBB: estimate.evDeltaBB,
     evDeltaPer100: estimate.evDeltaPer100,

@@ -175,7 +175,7 @@ export const PokerTable: React.FC = () => {
         <ActionPanel
           validActions={validActions}
           pot={game.pot}
-          onAction={heroAction}
+          onAction={(action, eq) => heroAction(action, eq)}
           heroId={hero.id}
           requiredEquity={potOdds?.requiredEquity}
           heroEquity={equity}

@@ -5,7 +5,7 @@ import { formatPercent } from '../../utils/format';
 interface ActionPanelProps {
   validActions: ValidActions;
   pot: number;
-  onAction: (action: GameAction) => void;
+  onAction: (action: GameAction, equity?: number) => void;
   heroId: number;
   requiredEquity?: number | null;
   heroEquity?: number | null;
@@ -91,7 +91,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
       <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${[canFold, canCheck || canCall, canRaise].filter(Boolean).length}, 1fr)` }}>
         {canFold && (
           <button
-            onClick={() => onAction({ type: 'PLAYER_FOLD', playerId: heroId })}
+            onClick={() => onAction({ type: 'PLAYER_FOLD', playerId: heroId }, heroEquity ?? undefined)}
             className="py-2.5 px-3 bg-gray-800 hover:bg-red-950 border border-gray-700 hover:border-red-800 text-gray-300 hover:text-red-300 text-sm font-bold uppercase tracking-wide transition-colors"
           >
             Fold
@@ -99,7 +99,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         )}
         {canCheck && !canCall && (
           <button
-            onClick={() => onAction({ type: 'PLAYER_CHECK', playerId: heroId })}
+            onClick={() => onAction({ type: 'PLAYER_CHECK', playerId: heroId }, heroEquity ?? undefined)}
             className="py-2.5 px-3 bg-gray-800 hover:bg-gray-700 border border-gray-700 hover:border-gray-500 text-gray-200 text-sm font-bold uppercase tracking-wide transition-colors"
           >
             Check
@@ -107,7 +107,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         )}
         {canCall && (
           <button
-            onClick={() => onAction({ type: 'PLAYER_CALL', playerId: heroId })}
+            onClick={() => onAction({ type: 'PLAYER_CALL', playerId: heroId }, heroEquity ?? undefined)}
             className="py-2.5 px-3 bg-blue-900 hover:bg-blue-800 border border-blue-700 hover:border-blue-500 text-blue-200 text-sm font-bold uppercase tracking-wide transition-colors"
           >
             Call {callAmount.toFixed(1)}
@@ -115,7 +115,7 @@ export const ActionPanel: React.FC<ActionPanelProps> = ({
         )}
         {canRaise && (
           <button
-            onClick={() => onAction({ type: 'PLAYER_RAISE', playerId: heroId, amount: raiseAmount })}
+            onClick={() => onAction({ type: 'PLAYER_RAISE', playerId: heroId, amount: raiseAmount }, heroEquity ?? undefined)}
             className="py-2.5 px-3 bg-emerald-900 hover:bg-emerald-800 border border-emerald-700 hover:border-emerald-500 text-emerald-200 text-sm font-bold uppercase tracking-wide transition-colors"
           >
             Raise {raiseAmount.toFixed(1)}

@@ -20,29 +20,49 @@ export interface HandSnapshot {
   handNumber: number;
   timestamp: number;
   streets: StreetSnapshot[];
-  heroNet: number; // BB won or lost this hand
+  heroNet: number;
   heroCards: HandCards;
   finalBoard: BoardCards;
   heroPosition: Position;
   numPlayers: number;
   mistakes: number;
   spews: number;
-  evDelta: number; // cumulative EV delta vs GTO for this hand
-  spotTypes: SpotType[]; // all spot types encountered
-  shareCode?: string; // base64 encoded for sharing
+  evDelta: number;
+  spotTypes: SpotType[];
+  shareCode?: string;
 }
 
+// Extended session stats — tracks the specific leaks identified in research
 export interface SessionStats {
   handsPlayed: number;
-  totalEvDelta: number; // total EV lost to mistakes
-  evPer100: number; // (totalEvDelta / handsPlayed) * 100
+  totalEvDelta: number;
+  evPer100: number;
   mistakeCount: number;
   spewCount: number;
-  optimalCount: number; // gto + acceptable
+  optimalCount: number;
   marginalCount: number;
   bbWon: number;
   startTime: number;
   spotStats: Record<SpotType, SpotStat>;
+
+  // Research-backed stat tracking
+  vpip: { hands: number; voluntary: number };          // voluntarily put $ in preflop
+  pfr: { hands: number; raised: number };              // preflop raise %
+  bbDefense: { faced: number; defended: number };      // BB fold-to-steal rate
+  cbetStats: {                                          // c-bet sizing by texture
+    dry: { count: number; correctSize: number };
+    wet: { count: number; correctSize: number };
+  };
+  riverThinValue: { spots: number; bet: number };      // missed thin river value
+  sizingTells: SizingTell[];                           // detected range tells
+  bluffFollowThrough: { started: number; completed: number }; // flop bluff → river completion
+}
+
+export interface SizingTell {
+  spotType: SpotType;
+  description: string;       // "You use large bets with strong hands on wet boards"
+  frequency: number;         // how often this pattern appears (0-1)
+  evImpact: number;          // estimated bb/100 cost
 }
 
 export interface LeakAnalysis {

@@ -5,49 +5,101 @@ import { useTrainingStore } from '../store/trainingStore';
 import { gameReducer, createInitialState, getValidActions } from '../engine/stateMachine';
 import { initEvaluator, evaluate7 } from '../engine/evaluator';
 import { selectAIAction } from '../ai/actionSelector';
-import { getGTOHint } from '../gto/hintEngine';
+import {
+  getGTOHint, analyzeCbetSizing, isRiverThinValueSpot, classifyBoardTexture,
+} from '../gto/hintEngine';
 import { GameAction } from '../types/game';
 
 registerReducer(gameReducer);
 
 export function useGameLoop() {
-  const { game, dispatch, setGame, setHint, setPendingHint, setEvaluatorReady, isEvaluatorReady } = useGameStore();
+  const { game, dispatch, setGame, setHint, setEvaluatorReady, isEvaluatorReady } = useGameStore();
   const { difficulty, numOpponents, stackSize } = useSettingsStore();
-  const { recordStreetSnapshot, finalizeHand } = useTrainingStore();
-  const prevStreetRef = useRef<string | null>(null);
+  const {
+    recordStreetSnapshot, finalizeHand,
+    recordVPIP, recordPFR, recordBBDecision,
+    recordCbet, recordRiverThinValue, recordBluffFollowThrough,
+  } = useTrainingStore();
   const aiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // tracks flop/turn bluffs: hero bet with equity < 0.38
+  const bluffStartedRef = useRef<boolean>(false);
 
-  // Init evaluator once
   useEffect(() => {
     initEvaluator().then(() => setEvaluatorReady(true));
   }, []);
 
-  // Start a new game
   const startGame = useCallback(() => {
     const total = numOpponents + 1;
     const state = createInitialState(total, stackSize, difficulty);
     setGame(state);
   }, [numOpponents, stackSize, difficulty]);
 
-  // Hero action handler - computes hint then dispatches
-  const heroAction = useCallback((action: GameAction) => {
+  // Hero action handler — records research-backed stats, computes GTO hint
+  const heroAction = useCallback((action: GameAction, equity?: number) => {
     const state = useGameStore.getState().game;
     if (!state) return;
 
     const hero = state.players.find(p => p.isHero);
     if (!hero || hero.holeCards === null) { dispatch(action); return; }
 
-    // Compute hint asynchronously (deferred so it doesn't block the UI frame)
+    const aType = action.type;
+    const isBet    = aType === 'PLAYER_RAISE' || aType === 'PLAYER_ALL_IN';
+    const isFold   = aType === 'PLAYER_FOLD';
+    const isCheck  = aType === 'PLAYER_CHECK';
+
+    // ── Preflop stats ──────────────────────────────────────────────────────────
+    if (state.street === 'preflop') {
+      const voluntary = aType === 'PLAYER_CALL' || isBet;
+      recordVPIP(voluntary);
+      recordPFR(isBet);
+
+      // BB defense: hero is BB and facing a raise above the posted BB
+      if (hero.position === 'BB' && state.currentBet > hero.currentBet + 0.5) {
+        recordBBDecision(!isFold);
+      }
+    }
+
+    // ── Flop c-bet sizing ──────────────────────────────────────────────────────
+    if (state.street === 'flop' && isBet) {
+      const texture = classifyBoardTexture(state.communityCards);
+      const betAmt = (action as { amount?: number }).amount ?? 0;
+      const { isCorrect } = analyzeCbetSizing(betAmt, state.pot, texture);
+      const bucket: 'dry' | 'wet' = (texture === 'dry' || texture === 'paired') ? 'dry' : 'wet';
+      recordCbet(bucket, isCorrect);
+    }
+
+    // ── River thin value ───────────────────────────────────────────────────────
+    if (state.street === 'river' && equity !== undefined) {
+      const facingBet = (state.currentBet - hero.currentBet) > 0;
+      const gtoAction = isBet ? 'raise' : isCheck ? 'check' : isFold ? 'fold' : 'call';
+      const { isThinValue } = isRiverThinValueSpot(equity, gtoAction, facingBet);
+      if (isThinValue) {
+        recordRiverThinValue(isBet);
+      }
+    }
+
+    // ── Bluff follow-through ───────────────────────────────────────────────────
+    if ((state.street === 'flop' || state.street === 'turn') && isBet && equity !== undefined && equity < 0.38) {
+      bluffStartedRef.current = true;
+    }
+    if (state.street === 'river' && bluffStartedRef.current) {
+      recordBluffFollowThrough(isBet);
+      bluffStartedRef.current = false;
+    }
+    if (isFold && bluffStartedRef.current) {
+      bluffStartedRef.current = false;
+    }
+
+    // ── GTO hint (deferred so it doesn't block the UI frame) ──────────────────
     setTimeout(() => {
       try {
-        const heroEquityVal = null; // will be provided by equity worker in real use
-        const hint = getGTOHint(state, action, hero.holeCards!, undefined);
+        const hint = getGTOHint(state, action, hero.holeCards!, equity);
         setHint(hint);
       } catch { /* evaluator may not be ready */ }
     }, 0);
 
     dispatch(action);
-  }, [dispatch, setHint]);
+  }, [dispatch, setHint, recordVPIP, recordPFR, recordBBDecision, recordCbet, recordRiverThinValue, recordBluffFollowThrough]);
 
   // AI turn handler
   useEffect(() => {
@@ -55,7 +107,6 @@ export function useGameLoop() {
     const actor = game.players[game.toAct];
     if (!actor || !actor.isAI || actor.isFolded || actor.isAllIn) return;
 
-    // Clear any pending AI timer
     if (aiTimerRef.current) clearTimeout(aiTimerRef.current);
 
     const delay = 600 + Math.random() * 800;
@@ -116,13 +167,15 @@ export function useGameLoop() {
     return () => clearTimeout(timer);
   }, [game?.phase]);
 
-  // Hand complete - finalize training data and start new hand
+  // Hand complete — finalize training data and start new hand
   useEffect(() => {
     if (!game || (!game.isHandOver && game.street !== 'showdown')) return;
     const hero = game.players.find(p => p.isHero);
     if (!hero) return;
 
     const timer = setTimeout(() => {
+      bluffStartedRef.current = false; // reset bluff tracking between hands
+
       finalizeHand(
         game.handNumber,
         hero.holeCards ?? [0, 1],
