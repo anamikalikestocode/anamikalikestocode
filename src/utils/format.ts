@@ -1,5 +1,5 @@
 export function formatBB(amount: number, decimals = 1): string {
-  return `${amount >= 0 ? '+' : ''}${amount.toFixed(decimals)} BB`;
+  return `${amount >= 0 ? '+' : ''}${amount.toFixed(decimals)} big blinds`;
 }
 
 export function formatPercent(value: number, decimals = 1): string {
@@ -8,7 +8,7 @@ export function formatPercent(value: number, decimals = 1): string {
 
 export function formatEV(ev: number): string {
   const sign = ev >= 0 ? '+' : '';
-  return `${sign}${ev.toFixed(2)} BB`;
+  return `${sign}${ev.toFixed(2)} big blinds`;
 }
 
 export function formatStack(chips: number): string {
@@ -17,7 +17,7 @@ export function formatStack(chips: number): string {
 }
 
 export function formatPot(pot: number): string {
-  return `${pot.toFixed(1)} BB`;
+  return `${pot.toFixed(1)} big blinds`;
 }
 
 export function positionName(pos: string): string {

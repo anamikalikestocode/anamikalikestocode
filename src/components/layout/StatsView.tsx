@@ -296,7 +296,7 @@ export const StatsView: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-xs font-mono text-red-500 font-bold">
-                      {leak.evLostPer100.toFixed(1)} BB / 100 hands
+                      {leak.evLostPer100.toFixed(1)} big blinds / 100 hands
                     </div>
                   </div>
                   <div className="text-xs text-gray-200 font-sans leading-snug">{leak.description}</div>

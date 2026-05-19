@@ -77,7 +77,7 @@ export const HandReplay: React.FC<HandReplayProps> = ({ hand, onClose }) => {
             <Card card={hand.heroCards[0]} size="sm" />
             <Card card={hand.heroCards[1]} size="sm" />
           </div>
-          <div className="text-xs text-gray-400">{positionName(street.heroPosition)} · {formatStack(street.heroStack)} BB</div>
+          <div className="text-xs text-gray-400">{positionName(street.heroPosition)} · {formatStack(street.heroStack)} big blinds</div>
         </div>
 
         {/* Actions this street */}
@@ -92,7 +92,7 @@ export const HandReplay: React.FC<HandReplayProps> = ({ hand, onClose }) => {
                   a.type === 'RAISE' ? 'text-emerald-400' :
                   a.type === 'CALL' ? 'text-blue-400' : 'text-gray-300'
                 }`}>
-                  {actionLabel(a.type)}{a.amount ? ` ${a.amount.toFixed(1)} BB` : ''}
+                  {actionLabel(a.type)}{a.amount ? ` ${a.amount.toFixed(1)} big blinds` : ''}
                 </span>
               </div>
             ))}
