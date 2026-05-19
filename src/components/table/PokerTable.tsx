@@ -57,7 +57,7 @@ export const PokerTable: React.FC = () => {
 
   if (!isEvaluatorReady) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500 text-sm">
+      <div className="flex items-center justify-center h-full text-gray-500 text-sm font-sans">
         Loading evaluator...
       </div>
     );
@@ -88,28 +88,38 @@ export const PokerTable: React.FC = () => {
         {/* Opponents */}
         <div className="flex gap-2 justify-center flex-wrap">
           {opponents.map(opp => (
-            <div key={opp.id} className={`text-center space-y-1 ${opp.isFolded ? 'opacity-40' : ''}`}>
-              <div className="text-xs text-gray-400">{opp.name}</div>
+            <div
+              key={opp.id}
+              className={`bg-gray-900 border border-gray-800 px-3 py-2 text-center space-y-1 ${opp.isFolded ? 'opacity-30' : ''}`}
+            >
+              <div className="flex items-center justify-center gap-1.5">
+                {opp.isDealer && (
+                  <span className="inline-block w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                    D
+                  </span>
+                )}
+                <div className="text-xs text-gray-400 font-sans">{opp.name}</div>
+              </div>
               <div className="flex gap-1 justify-center">
                 <Card card={null} faceDown size="sm" />
                 <Card card={null} faceDown size="sm" />
               </div>
               <div className="text-xs text-gray-300 font-mono">{formatStack(opp.stack)}bb</div>
               {opp.currentBet > 0 && (
-                <div className="text-xs text-yellow-400">{opp.currentBet.toFixed(1)}</div>
+                <div className="text-xs text-yellow-400 font-mono">{opp.currentBet.toFixed(1)}</div>
               )}
-              {opp.isFolded && <div className="text-xs text-gray-600">FOLDED</div>}
-              {opp.isDealer && <div className="text-xs text-blue-400">BTN</div>}
+              {opp.isFolded && <div className="text-[10px] text-gray-600 uppercase tracking-wider">Folded</div>}
             </div>
           ))}
         </div>
 
         {/* Community cards + pot */}
         <div className="flex flex-col items-center gap-2">
-          <div className="text-xs text-gray-500 font-mono">
-            POT: <span className="text-gray-200">{game.pot.toFixed(1)}bb</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[11px] uppercase tracking-widest text-gray-600">POT</span>
+            <span className="text-base font-mono font-bold text-gray-200">{game.pot.toFixed(1)}bb</span>
             {game.sidePots.length > 0 && (
-              <span className="ml-2 text-yellow-600">+{game.sidePots.length} side pot{game.sidePots.length > 1 ? 's' : ''}</span>
+              <span className="text-xs text-yellow-600 font-sans">+{game.sidePots.length} side</span>
             )}
           </div>
           <div className="flex gap-1.5">
@@ -121,18 +131,24 @@ export const PokerTable: React.FC = () => {
               />
             ))}
           </div>
-          <div className="text-xs text-gray-600 uppercase tracking-widest">
+          <div className="text-[10px] font-bold uppercase tracking-widest text-gray-600 border border-gray-800 px-2 py-0.5">
             {game.street}
           </div>
         </div>
 
         {/* Hero */}
         <div className="flex flex-col items-center gap-1.5">
-          <div className="text-xs text-gray-400">
-            {hero.position} · {formatStack(hero.stack)}bb
-            {hero.isDealer && <span className="ml-1 text-blue-400">BTN</span>}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-emerald-400 uppercase">{hero.position}</span>
+            <span className="text-gray-700">·</span>
+            <span className="text-xs text-gray-400 font-mono">{formatStack(hero.stack)}bb</span>
+            {hero.isDealer && (
+              <span className="inline-block w-4 h-4 bg-blue-600 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                D
+              </span>
+            )}
           </div>
-          <div className="flex gap-1.5">
+          <div className={`flex gap-1.5 ${isHeroTurn ? 'ring-1 ring-emerald-500/30 p-1' : ''}`}>
             {hero.holeCards ? (
               <>
                 <Card card={hero.holeCards[0]} size="lg" highlight={isHeroTurn} />
@@ -146,9 +162,9 @@ export const PokerTable: React.FC = () => {
             )}
           </div>
           {hero.currentBet > 0 && (
-            <div className="text-xs text-yellow-400">{hero.currentBet.toFixed(1)} in</div>
+            <div className="text-xs text-yellow-400 font-mono">{hero.currentBet.toFixed(1)} in</div>
           )}
-          {hero.isFolded && <div className="text-xs text-red-600">FOLDED</div>}
+          {hero.isFolded && <div className="text-xs text-red-600 uppercase tracking-wide">Folded</div>}
         </div>
       </div>
 
@@ -184,8 +200,10 @@ export const PokerTable: React.FC = () => {
 
       {/* Waiting indicator */}
       {!isHeroTurn && game.phase === 'betting' && (
-        <div className="border-t border-gray-800 p-3 text-center text-xs text-gray-600">
-          {game.players[game.toAct]?.name ?? '?'} is thinking...
+        <div className="border-t border-gray-800 p-3 text-center">
+          <span className="text-xs text-gray-600 font-sans animate-pulse">
+            Villain thinking
+          </span>
         </div>
       )}
     </div>
