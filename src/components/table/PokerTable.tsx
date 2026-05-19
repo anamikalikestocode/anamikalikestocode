@@ -20,13 +20,22 @@ export const PokerTable: React.FC = () => {
   const potOdds = usePotOdds(game, 0);
   const lastBoardLen = useRef(0);
 
-  // Start game on mount
+  // Start game on mount — create state then deal first hand
   useEffect(() => {
-    if (isEvaluatorReady && !game) startGame();
-    else if (isEvaluatorReady && game && game.phase === 'waiting') {
-      useGameStore.getState().dispatch({ type: 'DEAL_HAND' });
+    if (!isEvaluatorReady) return;
+    if (!game) {
+      startGame();
     }
   }, [isEvaluatorReady]);
+
+  // Auto-deal when game is created or phase is waiting
+  useEffect(() => {
+    if (!game || game.phase !== 'waiting') return;
+    const timer = setTimeout(() => {
+      useGameStore.getState().dispatch({ type: 'DEAL_HAND' });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [game?.phase, game?.handNumber]);
 
   // Recalculate equity whenever board or hole cards change
   useEffect(() => {

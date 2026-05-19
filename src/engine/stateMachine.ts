@@ -209,7 +209,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       }
       players[dealer].isDealer = true;
 
-      // Shuffle and deal 2 hole cards each
+      // Shuffle and deal 2 hole cards per player starting left of dealer
       const deck = shuffleDeck(createDeck());
       let deckIdx = 0;
       for (let i = 0; i < n; i++) {
@@ -217,28 +217,46 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
         players[pidx].holeCards = [deck[deckIdx++], deck[deckIdx++]];
       }
 
-      // For 2 players: BTN=SB, other=BB; preflop SB (BTN) acts first
-      // For 3 players: BTN, SB, BB; preflop UTG (BTN) acts first
+      // Post blinds automatically
+      // 2 players: BTN=SB (dealer) posts 0.5bb, BB posts 1bb
+      // 3+ players: SB=(dealer+1) posts 0.5bb, BB=(dealer+2) posts 1bb
+      const sbIdx = n === 2 ? dealer : (dealer + 1) % n;
+      const bbIdx = n === 2 ? (dealer + 1) % n : (dealer + 2) % n;
+
+      // SB
+      const sbAmount = Math.min(0.5, players[sbIdx].stack);
+      players[sbIdx].stack -= sbAmount;
+      players[sbIdx].currentBet = sbAmount;
+      players[sbIdx].totalBet = sbAmount;
+
+      // BB
+      const bbAmount = Math.min(1, players[bbIdx].stack);
+      players[bbIdx].stack -= bbAmount;
+      players[bbIdx].currentBet = bbAmount;
+      players[bbIdx].totalBet = bbAmount;
+
+      const pot = sbAmount + bbAmount;
+
+      // First to act preflop:
+      // 2p: BTN/SB (dealer) already posted — but in heads-up BTN acts first preflop
+      // 3+: UTG = player after BB
       let firstToAct: number;
       if (n === 2) {
-        // BTN/SB = dealer; first to act preflop is dealer (SB)
-        firstToAct = dealer;
+        firstToAct = dealer; // BTN/SB acts first heads-up
       } else {
-        // UTG = player after BB = player 3 seats left of dealer (or wrap)
-        const bbIdx = (dealer + 2) % n;
-        firstToAct = (bbIdx + 1) % n;
+        firstToAct = (bbIdx + 1) % n; // UTG = after BB
       }
 
       return {
         ...state,
         street: 'preflop',
         phase: 'betting',
-        deck: deck.slice(deckIdx), // remaining cards
+        deck: deck.slice(deckIdx),
         communityCards: [],
         players,
-        pot: 0,
+        pot,
         sidePots: [],
-        currentBet: 1, // 1 BB
+        currentBet: 1,
         lastRaiseSize: 1,
         toAct: firstToAct,
         lastAggressor: null,
@@ -507,11 +525,14 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       if (pidx !== -1) {
         players[pidx].stack += action.amount;
       }
+      const newPot = Math.max(0, state.pot - action.amount);
       return {
         ...state,
         players,
-        pot: Math.max(0, state.pot - action.amount),
+        pot: newPot,
         winners: [...state.winners, action.winnerId],
+        isHandOver: true,
+        phase: 'complete',
       };
     }
 
