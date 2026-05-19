@@ -9,8 +9,7 @@ import { Card } from '../shared/Card';
 import { ActionPanel } from './ActionPanel';
 import { EquityMeter } from '../training/EquityMeter';
 import { GTOHintPanel } from '../training/GTOHintPanel';
-import { cardToString } from '../../engine/cards';
-import { formatStack, positionName, streetName } from '../../utils/format';
+import { positionName, streetName } from '../../utils/format';
 
 export const PokerTable: React.FC = () => {
   const { game, lastHint, pendingHint, isEvaluatorReady } = useGameStore();
@@ -20,15 +19,11 @@ export const PokerTable: React.FC = () => {
   const potOdds = usePotOdds(game, 0);
   const lastBoardLen = useRef(0);
 
-  // Start game on mount — create state then deal first hand
   useEffect(() => {
     if (!isEvaluatorReady) return;
-    if (!game) {
-      startGame();
-    }
+    if (!game) startGame();
   }, [isEvaluatorReady]);
 
-  // Auto-deal when game is created or phase is waiting
   useEffect(() => {
     if (!game || game.phase !== 'waiting') return;
     const timer = setTimeout(() => {
@@ -37,12 +32,10 @@ export const PokerTable: React.FC = () => {
     return () => clearTimeout(timer);
   }, [game?.phase, game?.handNumber]);
 
-  // Recalculate equity whenever board or hole cards change
   useEffect(() => {
     if (!game || !isEvaluatorReady) return;
     const hero = game.players.find(p => p.isHero);
     if (!hero?.holeCards) return;
-
     const boardChanged = game.communityCards.length !== lastBoardLen.current;
     if (boardChanged || game.street === 'preflop') {
       lastBoardLen.current = game.communityCards.length;
@@ -58,7 +51,7 @@ export const PokerTable: React.FC = () => {
   if (!isEvaluatorReady) {
     return (
       <div className="flex items-center justify-center h-full text-gray-500 text-sm font-sans">
-        Loading evaluator...
+        Loading…
       </div>
     );
   }
@@ -81,92 +74,115 @@ export const PokerTable: React.FC = () => {
   const isHeroTurn = game.toAct === hero.id && game.phase === 'betting' && !hero.isFolded && !hero.isAllIn;
   const validActions = isHeroTurn ? getValidActions(game, hero.id) : null;
 
-  // Position marker chips — show instead of text for blind positions
-  const PositionChip = ({ position }: { position: string }) => {
+  const PositionBadge = ({ position }: { position: string }) => {
     if (position === 'BB') return (
-      <div className="w-6 h-6 rounded-full bg-blue-600 border-2 border-blue-400 shadow flex items-center justify-center shrink-0" title="Big Blind">
-        <span className="text-[8px] font-black text-white leading-none">BB</span>
+      <div className="w-5 h-5 rounded-full bg-blue-600 border border-blue-400 flex items-center justify-center shrink-0" title="Big Blind">
+        <span className="text-[7px] font-black text-white leading-none">BB</span>
       </div>
     );
     if (position === 'SB') return (
-      <div className="w-6 h-6 rounded-full bg-yellow-500 border-2 border-yellow-300 shadow flex items-center justify-center shrink-0" title="Small Blind">
-        <span className="text-[8px] font-black text-yellow-900 leading-none">SB</span>
+      <div className="w-5 h-5 rounded-full bg-yellow-500 border border-yellow-300 flex items-center justify-center shrink-0" title="Small Blind">
+        <span className="text-[7px] font-black text-yellow-900 leading-none">SB</span>
       </div>
     );
     if (position === 'BTN') return (
-      <div className="w-6 h-6 rounded-full bg-white border-[3px] border-gray-200 shadow-lg flex items-center justify-center shrink-0" title="Dealer / Button">
-        <span className="text-[6px] font-black text-gray-900 leading-none tracking-tight">DEAL</span>
+      <div className="w-5 h-5 rounded-full bg-white border-2 border-gray-300 shadow flex items-center justify-center shrink-0" title="Dealer">
+        <span className="text-[5px] font-black text-gray-900 leading-none">D</span>
       </div>
     );
-    return <span className="text-[10px] text-gray-500 font-sans">{positionName(position)}</span>;
+    return <span className="text-[9px] text-gray-600 font-sans">{positionName(position)}</span>;
   };
 
-  const Chips = ({ amount, className = '' }: { amount: number; className?: string }) => (
+  const Stack = ({ amount, className = '' }: { amount: number; className?: string }) => (
     <span className={`font-mono ${className}`}>
-      <span className="text-yellow-600 mr-0.5">●</span>{amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1)}
+      <span className="text-yellow-600 mr-0.5">●</span>
+      {amount % 1 === 0 ? amount.toFixed(0) : amount.toFixed(1)}
     </span>
   );
 
+  const activePlayers = opponents.filter(o => !o.isFolded);
+  const foldedPlayers = opponents.filter(o => o.isFolded);
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Table area */}
-      <div className="flex-1 felt-bg flex flex-col justify-between p-2 gap-1.5 min-h-0 overflow-hidden">
-        {/* Opponents */}
-        <div className="flex gap-2 justify-center flex-wrap">
+      {/* Table felt */}
+      <div className="flex-1 felt-bg flex flex-col min-h-0 overflow-hidden" style={{ padding: '10px 8px' }}>
+
+        {/* Opponents row */}
+        <div className="flex gap-1.5 justify-center flex-wrap mb-1">
           {opponents.map(opp => (
             <div
               key={opp.id}
-              className={`bg-gray-900/80 border border-gray-800 px-3 py-1.5 text-center space-y-1 ${opp.isFolded ? 'opacity-30' : ''}`}
+              className={`relative bg-gray-900/85 border px-2.5 py-1.5 text-center transition-opacity ${
+                opp.isFolded
+                  ? 'border-gray-800 opacity-30'
+                  : game.toAct === opp.id && game.phase === 'betting'
+                  ? 'border-emerald-700 shadow shadow-emerald-900/50'
+                  : 'border-gray-700'
+              }`}
             >
-              <div className="flex items-center justify-center gap-1.5">
-                <PositionChip position={opp.position} />
-                <div className="text-xs text-gray-400 font-sans">{opp.name}</div>
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <PositionBadge position={opp.position} />
+                <span className="text-[10px] text-gray-400 font-medium">{opp.name}</span>
               </div>
-              <div className="flex gap-1 justify-center">
+              <div className="flex gap-0.5 justify-center">
                 <Card card={null} faceDown size="sm" />
                 <Card card={null} faceDown size="sm" />
               </div>
-              <Chips amount={opp.stack} className="text-xs text-gray-300" />
+              <Stack amount={opp.stack} className="text-[10px] text-gray-500 block mt-1" />
               {opp.currentBet > 0 && (
-                <div className="text-xs text-yellow-400">
-                  <Chips amount={opp.currentBet} className="text-yellow-400" /> bet
+                <div className="text-[10px] text-yellow-400 font-mono">
+                  +<Stack amount={opp.currentBet} className="text-yellow-400 text-[10px]" />
                 </div>
               )}
-              {opp.isFolded && <div className="text-[10px] text-gray-600 uppercase tracking-wider">Folded</div>}
+              {game.toAct === opp.id && game.phase === 'betting' && !opp.isFolded && (
+                <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              )}
             </div>
           ))}
         </div>
 
-        {/* Community cards + pot */}
-        <div className="flex flex-col items-center gap-1.5">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-widest text-gray-600">Pot</span>
-            <span className="text-base font-bold text-gray-200">
-              <Chips amount={game.pot} className="text-gray-200 text-base font-bold" />
-            </span>
+        {/* Community cards + pot — center of table */}
+        <div className="flex-1 flex flex-col items-center justify-center gap-2">
+          {/* Pot */}
+          <div className="flex items-center gap-2 bg-black/30 px-3 py-1.5 rounded-full">
+            <span className="text-[10px] uppercase tracking-widest text-gray-500">Pot</span>
+            <Stack amount={game.pot} className="text-gray-100 font-bold text-sm" />
             {game.sidePots.length > 0 && (
-              <span className="text-xs text-yellow-600 font-sans">
-                +{game.sidePots.length} side pot{game.sidePots.length > 1 ? 's' : ''}
+              <span className="text-[10px] text-yellow-600">
+                +{game.sidePots.length} side
               </span>
             )}
           </div>
-          <div className="flex gap-1">
+
+          {/* Board */}
+          <div className="flex gap-1.5">
             {[0,1,2,3,4].map(i => (
               <Card key={i} card={game.communityCards[i] ?? null} size="md" />
             ))}
           </div>
-          <div className="text-[9px] font-bold uppercase tracking-widest text-gray-600 border border-gray-800 px-2 py-0.5">
+
+          {/* Street label */}
+          <div className="text-[9px] font-bold uppercase tracking-widest text-gray-600 border border-gray-800 px-2 py-0.5 bg-black/20">
             {streetName(game.street)}
           </div>
         </div>
 
         {/* Hero */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-1.5">
-            <PositionChip position={hero.position} />
-            <Chips amount={hero.stack} className="text-xs text-gray-400" />
+        <div className="flex flex-col items-center gap-1.5">
+          {/* Hero position + stack */}
+          <div className="flex items-center gap-2">
+            <PositionBadge position={hero.position} />
+            <Stack amount={hero.stack} className="text-xs text-gray-400" />
+            {hero.currentBet > 0 && (
+              <span className="text-xs text-yellow-400">
+                +<Stack amount={hero.currentBet} className="text-yellow-400 text-xs" />
+              </span>
+            )}
           </div>
-          <div className={`flex gap-1.5 ${isHeroTurn ? 'ring-1 ring-emerald-500/40 p-1 rounded' : ''}`}>
+
+          {/* Hero cards — larger, prominent */}
+          <div className={`flex gap-2 ${isHeroTurn ? 'drop-shadow-[0_0_8px_rgba(52,211,153,0.4)]' : ''}`}>
             {hero.holeCards ? (
               <>
                 <Card card={hero.holeCards[0]} size="lg" highlight={isHeroTurn} />
@@ -179,12 +195,13 @@ export const PokerTable: React.FC = () => {
               </>
             )}
           </div>
-          {hero.currentBet > 0 && (
-            <div className="text-xs text-yellow-400">
-              <Chips amount={hero.currentBet} className="text-yellow-400" /> in
-            </div>
+
+          {hero.isFolded && (
+            <div className="text-xs text-red-600 uppercase tracking-wide font-bold">Folded</div>
           )}
-          {hero.isFolded && <div className="text-xs text-red-600 uppercase tracking-wide">Folded</div>}
+          {hero.isAllIn && (
+            <div className="text-xs text-yellow-500 uppercase tracking-wide font-bold">All-in</div>
+          )}
         </div>
       </div>
 
@@ -218,11 +235,11 @@ export const PokerTable: React.FC = () => {
         />
       )}
 
-      {/* Waiting indicator */}
+      {/* Waiting */}
       {!isHeroTurn && game.phase === 'betting' && (
         <div className="border-t border-gray-800 p-3 text-center">
           <span className="text-xs text-gray-600 font-sans animate-pulse">
-            Waiting for opponents...
+            Waiting for opponents…
           </span>
         </div>
       )}
