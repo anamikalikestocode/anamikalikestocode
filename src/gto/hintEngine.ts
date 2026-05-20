@@ -4,6 +4,7 @@ import { handToKey } from './ranges';
 import { getOpenRange, get3BetRange, getCallVs3BetRange, getPushRange } from './rangeData';
 import { estimatePostflopDecision } from './evEstimator';
 import { requiredEquity, spr as calcSpr } from '../engine/potOdds';
+import { positionName, handKeyToReadable } from '../utils/format';
 
 function mapAction(a: GameAction): GTOAction {
   switch (a.type) {
@@ -86,14 +87,29 @@ function buildPreflop(
     spotType = 'preflop_push_fold';
     gtoFreq = rangeData ? (rangeData.combos[handKey] ?? 0) : 0;
     gtoAction = gtoFreq >= 0.5 ? 'raise' : 'fold';
-    explanation = `Push/fold territory at ${depth}. ${handKey} pushes ${(gtoFreq * 100).toFixed(0)}% GTO.`;
+    const pushPct = Math.round(gtoFreq * 100);
+    if (pushPct === 0) {
+      explanation = `With a short stack you should either go all-in or fold — ${handKeyToReadable(handKey)} is too weak to push here. Fold and wait for a better spot.`;
+    } else if (pushPct >= 90) {
+      explanation = `Short-stack situation: your only real choices are all-in or fold. ${handKeyToReadable(handKey)} is strong enough to go all-in here.`;
+    } else {
+      explanation = `Short-stack situation: your only real choices are all-in or fold. ${handKeyToReadable(handKey)} goes all-in about ${pushPct}% of the time here — it's borderline.`;
+    }
   } else if (!facingRaise) {
     // First-in open
     rangeData = getOpenRange(hero.position, '100bb');
     spotType = 'preflop_open';
     gtoFreq = rangeData ? (rangeData.combos[handKey] ?? 0) : 0;
     gtoAction = gtoFreq >= 0.5 ? 'raise' : 'fold';
-    explanation = `${hero.position} open: ${handKey} opens ${(gtoFreq * 100).toFixed(0)}% GTO.`;
+    const openPct = Math.round(gtoFreq * 100);
+    const posName = positionName(hero.position);
+    if (openPct === 0) {
+      explanation = `${handKeyToReadable(handKey)} isn't strong enough to raise from ${posName}. Best play is to fold and wait for a better hand.`;
+    } else if (openPct >= 90) {
+      explanation = `${handKeyToReadable(handKey)} is a solid raising hand from ${posName}.`;
+    } else {
+      explanation = `${handKeyToReadable(handKey)} can be raised from ${posName} about ${openPct}% of the time — it's a borderline spot.`;
+    }
   } else if (numRaises === 1) {
     // Facing open — 3-bet or call/fold
     const aggressorPos = state.actionsThisStreet.find(a => a.type === 'RAISE')
@@ -109,14 +125,27 @@ function buildPreflop(
     }
     gtoFreq = rangeData ? (rangeData.combos[handKey] ?? 0) : 0;
     gtoAction = gtoFreq >= 0.5 ? playerAction : (playerAction === 'fold' ? 'raise' : 'fold');
-    explanation = `${hero.position} vs ${aggressorPos} open: ${handKey} is ${playerAction} — GTO frequency ${(gtoFreq * 100).toFixed(0)}%.`;
+    const facingPct = Math.round(gtoFreq * 100);
+    const aggressorName = positionName(aggressorPos);
+    if (facingPct <= 15) {
+      explanation = `Facing a raise from ${aggressorName}, ${handKeyToReadable(handKey)} isn't strong enough to continue. Best play is to fold here.`;
+    } else if (facingPct >= 80) {
+      explanation = `${handKeyToReadable(handKey)} is comfortably worth playing when facing a raise from ${aggressorName}.`;
+    } else {
+      explanation = `Facing a raise from ${aggressorName}, ${handKeyToReadable(handKey)} is a mixed spot — played about ${facingPct}% of the time.`;
+    }
   } else {
     // vs 3-bet or squeeze
     spotType = numRaises >= 2 ? 'preflop_squeeze' : 'preflop_vs_3bet';
     rangeData = getCallVs3BetRange(hero.position, '100bb');
     gtoFreq = rangeData ? (rangeData.combos[handKey] ?? 0) : 0;
     gtoAction = gtoFreq >= 0.5 ? 'call' : 'fold';
-    explanation = `${hero.position} vs ${numRaises}-bet: ${handKey} calls ${(gtoFreq * 100).toFixed(0)}% GTO.`;
+    const squeezeCallPct = Math.round(gtoFreq * 100);
+    if (squeezeCallPct <= 20) {
+      explanation = `Facing heavy re-raises, ${handKeyToReadable(handKey)} isn't strong enough to continue. Fold here.`;
+    } else {
+      explanation = `Under a lot of pressure. ${handKeyToReadable(handKey)} can call about ${squeezeCallPct}% of the time here — it's marginal.`;
+    }
   }
 
   let verdict = verdictFromFreq(gtoFreq, playerAction, gtoAction);
@@ -133,7 +162,7 @@ function buildPreflop(
 
     if (raiseAmt > gtoStdSize * 1.55) {
       isSizingTell = true;
-      explanation = `[SIZING TELL] Raised ${raiseAmt.toFixed(1)}bb — GTO standard is ${gtoStdSize}bb regardless of hand strength. Uniform sizing prevents opponents reading your range. ` + explanation;
+      explanation = `[SIZING TELL] You raised to ${raiseAmt.toFixed(1)} — standard is ${gtoStdSize}. When you bet bigger with strong hands and smaller with weak ones, experienced opponents pick up the pattern and adjust against you. Keep your sizing the same regardless of what you're holding. ` + explanation;
 
       if (raiseAmt > gtoStdSize * 2.0 && gtoFreq > 0.75) {
         verdict = 'mistake';
@@ -143,7 +172,7 @@ function buildPreflop(
 
     // 3-bet spot oversizing check
     if (numRaises === 1 && raiseAmt > 12) {
-      explanation += ` Note: 3-bet to ${raiseAmt.toFixed(1)}bb is oversized — standard 3-bet is 3x the open (~7.5–9bb).`;
+      explanation += ` Your re-raise of ${raiseAmt.toFixed(1)} is larger than standard — around 8–9 is typical.`;
     }
   }
 
@@ -182,11 +211,11 @@ export function analyzeCbetSizing(
   const frac = pot > 0 ? betAmount / pot : 0;
 
   const ranges: Record<BoardTexture, { min: number; max: number; label: string }> = {
-    dry:              { min: 0.25, max: 0.40, label: 'dry board — GTO: 25–40% pot' },
-    wet:              { min: 0.50, max: 0.75, label: 'wet board — GTO: 50–75% pot' },
-    paired:           { min: 0.25, max: 0.45, label: 'paired board — GTO: 25–45% pot' },
-    monotone:         { min: 0.45, max: 0.70, label: 'monotone board — GTO: 45–70% pot' },
-    rainbow_connected:{ min: 0.45, max: 0.65, label: 'connected board — GTO: 45–65% pot' },
+    dry:              { min: 0.25, max: 0.40, label: 'dry board (optimal: 25–40% of the pot)' },
+    wet:              { min: 0.50, max: 0.75, label: 'draw-heavy board (optimal: 50–75% of the pot)' },
+    paired:           { min: 0.25, max: 0.45, label: 'paired board (optimal: 25–45% of the pot)' },
+    monotone:         { min: 0.45, max: 0.70, label: 'flush board (optimal: 45–70% of the pot)' },
+    rainbow_connected:{ min: 0.45, max: 0.65, label: 'connected board (optimal: 45–65% of the pot)' },
   };
 
   const range = ranges[texture] ?? ranges.dry;
@@ -195,12 +224,12 @@ export function analyzeCbetSizing(
   let sizingNote = '';
   if (!isCorrect) {
     if (frac < range.min) {
-      sizingNote = `Bet too small (${(frac * 100).toFixed(0)}% pot) on ${range.label}. Draws call too cheaply.`;
+      sizingNote = `You bet ${(frac * 100).toFixed(0)}% of the pot on a ${range.label} — too small. Draws can call for almost free.`;
     } else {
-      sizingNote = `Bet too large (${(frac * 100).toFixed(0)}% pot) on ${range.label}. Over-sizing is a range tell — it signals strong hands only.`;
+      sizingNote = `You bet ${(frac * 100).toFixed(0)}% of the pot on a ${range.label} — too big. Overbetting telegraphs that you have a monster.`;
     }
   } else {
-    sizingNote = `Good sizing (${(frac * 100).toFixed(0)}% pot) for ${range.label}.`;
+    sizingNote = `Good bet size (${(frac * 100).toFixed(0)}% of the pot) for a ${range.label}.`;
   }
 
   return {
@@ -290,7 +319,7 @@ export function getGTOHint(
   if (state.street === 'river') {
     const { isThinValue, missedValue } = isRiverThinValueSpot(equity, playerAction, facingBet);
     if (missedValue) {
-      explanation += ` Thin value spot: ${(equity * 100).toFixed(0)}% equity — a small bet (25–33% pot) here earns 1–2bb. This is a top-3 measurable leak.`;
+      explanation += ` You're winning ${(equity * 100).toFixed(0)}% of the time here and nobody bet — a small bet (25–33% of the pot) would pick up extra chips. Checking this away is one of the most common and costly leaks.`;
     }
   }
 

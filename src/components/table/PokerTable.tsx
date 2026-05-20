@@ -209,7 +209,7 @@ export const PokerTable: React.FC = () => {
       {showEquityRealtime && hero.holeCards && (
         <EquityMeter
           equity={equity}
-          requiredEquity={potOdds?.requiredEquity ?? null}
+          requiredEquity={game.street === 'preflop' ? null : (potOdds?.requiredEquity ?? null)}
           loading={equityLoading}
           potOdds={potOdds?.requiredEquity ?? undefined}
         />
