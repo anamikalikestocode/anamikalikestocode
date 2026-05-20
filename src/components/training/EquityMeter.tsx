@@ -49,7 +49,7 @@ export const EquityMeter: React.FC<EquityMeterProps> = ({
   // No bet — just show win rate with a clean bar
   return (
     <div className="px-4 py-2.5 border-t border-gray-800 flex items-center gap-3">
-      <span className="text-xs text-gray-500 shrink-0">You win this hand</span>
+      <span className="text-xs text-gray-500 shrink-0">Hand strength</span>
       <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all duration-500 ${

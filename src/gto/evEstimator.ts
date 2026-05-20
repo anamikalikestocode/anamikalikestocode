@@ -9,38 +9,32 @@ export interface EVEstimate {
 }
 
 function pct(v: number): string { return `${(v * 100).toFixed(0)}%`; }
-function bb(v: number): string  { return `${v >= 0 ? '+' : ''}${v.toFixed(1)}bb`; }
 
-function sprNote(spr: number): string {
-  if (spr < 1.5) return `SPR ${spr.toFixed(1)}: trivial commit — any reasonable equity stacks.`;
-  if (spr < 3)   return `SPR ${spr.toFixed(1)}: commit with top-pair+. Draws have the right price.`;
-  if (spr < 6)   return `SPR ${spr.toFixed(1)}: mid-depth. Strong draws worth raising; marginal pairs call.`;
-  return `SPR ${spr.toFixed(1)}: deep. Premium hands only for stacking — bloated bluffs are costly.`;
-}
-
-function mdfNote(betFrac: number): string {
-  const mdf = 1 - betFrac / (1 + betFrac);
-  return `MDF ${pct(mdf)}: you must defend at least ${pct(mdf)} of your range to prevent auto-profitable bluffs.`;
+function stackDepthNote(spr: number): string {
+  if (spr < 1.5) return `Not much left to play with — commit with anything reasonable.`;
+  if (spr < 3)   return `Moderate chips behind — top pair or better is worth getting it in.`;
+  if (spr < 6)   return `Mid-depth stack — strong draws are worth raising; weak pairs are close calls.`;
+  return `Deep stack — only go big with very strong hands, big bluffs are expensive if they fail.`;
 }
 
 function textureNote(texture: PostflopContext['boardTexture'], facingBet: boolean): string {
   switch (texture) {
     case 'wet':
       return facingBet
-        ? 'Wet board: draws dense in range — defend wider and raise stronger draws for protection.'
-        : 'Wet board: polarize sizing (50–75% pot) to charge draws and protect your value range.';
+        ? 'Lots of possible draws on this board — defend a bit wider and raise your strong draws to protect against free cards.'
+        : 'Draw-heavy board: bet bigger (half to three-quarters of the pot) to make draws pay for their cards.';
     case 'monotone':
       return facingBet
-        ? 'Monotone board: flush draws everywhere — MDF widens slightly; be careful raising without nut-flush equity.'
-        : 'Monotone board: 45–70% pot sizing. Ranges cap at non-flush hands — bet for protection and thin value.';
+        ? 'Three cards of the same suit — flush draws everywhere. Be careful re-raising without a strong flush draw yourself.'
+        : 'Flush-heavy board: bet around half the pot for protection and value.';
     case 'paired':
       return facingBet
-        ? 'Paired board: straights/flushes reduced; full houses credible — fold threshold rises slightly.'
-        : 'Paired board: check back marginal hands; bet strong made hands and value-heavy bluffs only.';
+        ? 'Paired board — full houses become possible; straights and flushes less likely. Be a bit more cautious with medium-strength hands.'
+        : 'Paired board: check back medium-strength hands; bet mainly strong made hands.';
     default:
       return facingBet
-        ? 'Dry board: opponent\'s range is mostly air — MDF applies strictly, call with any equity.'
-        : 'Dry board: 25–33% pot c-bet captures the node EV. Over-sizing is a range tell.';
+        ? 'Dry board with few draws — opponent\'s range is mostly weak. Call if you have any reasonable equity.'
+        : 'Dry board: a small bet (25–33% of the pot) works great here. Big bets on dry boards tip off your hand strength.';
   }
 }
 
@@ -55,39 +49,40 @@ export function estimatePostflopDecision(
   const margin = adjustedEq - requiredEquity;
   const betFrac = potSize > 0 ? betSize / potSize : 0;
 
-  // ── Determine recommended action & base EV ─────────────────────────────────
   let recommendedAction: GTOAction;
   let baseExpl: string;
   let evDeltaBB = 0;
 
   if (heroEquity > 0.85) {
     recommendedAction = 'raise';
-    baseExpl = `${pct(heroEquity)} equity — nut-strength. Raise for value and to deny runner-runner equity.`;
+    baseExpl = `You're winning ${pct(heroEquity)} of the time — very strong hand. Raise to build the pot and get paid.`;
     evDeltaBB = potSize * 0.25;
   } else if (spr < 2 && heroEquity > 0.38) {
     recommendedAction = 'raise';
-    baseExpl = `${sprNote(spr)} ${pct(heroEquity)} equity crosses the commit threshold.`;
+    baseExpl = `Not much left to play with and you're winning ${pct(heroEquity)} of the time — worth getting it in.`;
     evDeltaBB = potSize * 0.15;
   } else if (margin > 0.15) {
     recommendedAction = facingBet ? 'call' : 'raise';
     evDeltaBB = margin * potSize * 0.65;
-    const sign = facingBet ? 'call' : 'bet';
-    baseExpl = `${pct(adjustedEq)} eq vs ${pct(requiredEquity)} required (+${pct(margin)} margin). Clear ${sign}${inPosition ? ' — IP adds ~4% EV' : ''}.`;
+    baseExpl = facingBet
+      ? `You win ${pct(adjustedEq)} of the time and only need ${pct(requiredEquity)} to break even — clear call${inPosition ? ', and you act last which adds extra value' : ''}.`
+      : `You win ${pct(adjustedEq)} of the time — strong enough to bet here${inPosition ? ', and acting last gives you extra leverage' : ''}.`;
   } else if (margin > 0.05) {
     recommendedAction = facingBet ? 'call' : 'raise';
     evDeltaBB = margin * potSize * 0.35;
-    baseExpl = `${pct(adjustedEq)} eq vs ${pct(requiredEquity)} (+${pct(margin)}). ${facingBet ? 'Thin call' : 'Marginal bet'} — exploitable if sized wrong.`;
+    baseExpl = facingBet
+      ? `You win ${pct(adjustedEq)} and need ${pct(requiredEquity)} — thin call, but you're slightly ahead of the odds.`
+      : `You win ${pct(adjustedEq)} — slightly above the threshold to bet, but sizing matters.`;
   } else if (Math.abs(margin) <= 0.06) {
     recommendedAction = 'call';
     evDeltaBB = margin * potSize * 0.1;
-    baseExpl = `${pct(heroEquity)} eq within 6% of break-even (${pct(requiredEquity)}). Mixed-strategy zone — call is fine.`;
+    baseExpl = `You win ${pct(heroEquity)} and need ${pct(requiredEquity)} — nearly even odds. Calling is fine here.`;
   } else {
     recommendedAction = 'fold';
     evDeltaBB = margin * potSize * 0.45;
-    baseExpl = `${pct(heroEquity)} eq vs ${pct(requiredEquity)} needed (${pct(Math.abs(margin))} under). Fold: ${bb(evDeltaBB)}.`;
+    baseExpl = `You only win ${pct(heroEquity)} of the time but need ${pct(requiredEquity)} to break even — the odds aren't there. Fold.`;
   }
 
-  // ── Compare player action to recommendation ────────────────────────────────
   let verdict: DecisionVerdict;
   const evImpact = Math.abs(evDeltaBB);
 
@@ -111,23 +106,24 @@ export function estimatePostflopDecision(
     evDeltaBB = -(evImpact * 0.2);
   }
 
-  // ── Build full explanation ─────────────────────────────────────────────────
   const parts: string[] = [baseExpl];
 
   if (facingBet && betFrac > 0.25) {
-    parts.push(mdfNote(betFrac));
+    const mdf = Math.round((1 - betFrac / (1 + betFrac)) * 100);
+    parts.push(`Facing a ${pct(betFrac)} pot-sized bet, you should be calling at least ${mdf}% of the time to prevent easy bluffs.`);
   }
+
   parts.push(textureNote(boardTexture, facingBet));
-  parts.push(sprNote(spr));
+  parts.push(stackDepthNote(spr));
 
   if (street === 'river') {
-    parts.push('River: equity is final — no draws improve. EV is pure stack math from here.');
+    parts.push('River: no more cards coming — the hand is what it is. Call or fold purely based on your odds.');
   } else if (street === 'turn') {
-    parts.push('Turn: draws are priced in or out. If you defended flop correctly, turn defense follows proportionally.');
+    parts.push('Turn: draws are nearly paid for or priced out. If you called the flop correctly, the turn decision follows the same logic.');
   }
 
   if (!inPosition && facingBet) {
-    parts.push('OOP: consider donk-leads or check-raises on turns that improve your range but not theirs.');
+    parts.push('Acting first is a disadvantage here — consider check-raising on turns that improved your hand.');
   }
 
   return {
