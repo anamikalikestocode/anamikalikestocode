@@ -206,7 +206,7 @@ export const PokerTable: React.FC = () => {
       </div>
 
       {/* Training overlays */}
-      {showEquityRealtime && hero.holeCards && (
+      {showEquityRealtime && hero.holeCards && game.street !== 'preflop' && (
         <EquityMeter
           equity={equity}
           requiredEquity={game.street === 'preflop' ? null : (potOdds?.requiredEquity ?? null)}
